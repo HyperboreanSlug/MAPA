@@ -33,14 +33,30 @@ python -m scraper status
 # Download named open-data feeds + import to DB
 python -m scraper scrape --named-only --limit 2000
 
-# PRIMARY: ethnic misclassification
+# PRIMARY: ethnic misclassification (optional charge filter)
 python -m scraper misclassify --ethnicity hispanic
-python -m scraper misclassify --ethnicity indian --export data/misclass_indian.csv
+python -m scraper misclassify --ethnicity indian --charge sex_crimes
+python -m scraper misclassify --charge burglary_be --export data/misclass_be.csv
 
-# Search / dedupe
+# Search by name and/or charge category
 python -m scraper search --name Garcia
+python -m scraper search --charge sex_crimes
+python -m scraper search --charge drugs --limit 50
+
+# Backfill categories on old rows; dedupe
+python -m scraper reclassify-charges
 python -m scraper dedupe
 ```
+
+### Charge categories
+
+Keyword classifier on charge text (stored as `charge_category`):
+
+`sex_crimes` · `homicide` · `violent` · `weapons` · `robbery` · `burglary_be` (B&E) ·  
+`theft_property` · `drugs` · `dui_traffic` · `fraud_financial` · `domestic` ·  
+`public_order` · `other` · `unknown`
+
+Use `--charge` / GUI **Charge** combo on Misclassify and Search.
 
 ### GUI
 

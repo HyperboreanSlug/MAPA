@@ -133,41 +133,57 @@ def cmd_import(args: argparse.Namespace) -> None:
 
 
 def cmd_search(args: argparse.Namespace) -> None:
+    from .charge_classifications import category_label
     from .searcher import ArrestSearcher
 
     s = ArrestSearcher(args.database or "data/arrests.db")
+    charge = None if (args.charge or "all") == "all" else args.charge
     try:
-        if args.name:
-            res = s.search_by_name(args.name, state=args.state, race=args.race, limit=args.limit)
+        if args.name or charge or args.race or args.state:
+            res = s.search(
+                name=args.name,
+                state=args.state,
+                race=args.race,
+                charge_category=charge,
+                limit=args.limit,
+            )
             print(f"Found {len(res.records)} ({res.query_time_ms:.0f} ms)")
             for r in res.records[:50]:
                 name = (
                     f"{r.get('first_name') or ''} {r.get('last_name') or ''}"
                 ).strip() or r.get("full_name") or "—"
+                cat = r.get("charge_category") or ""
                 print(
-                    f"  {name:<30} race={r.get('race') or '—':<12} "
-                    f"charge={(r.get('charge_description') or '')[:40]}"
+                    f"  {name:<28} race={r.get('race') or '—':<10} "
+                    f"cat={category_label(cat) if cat else '—':<18} "
+                    f"charge={(r.get('charge_description') or '')[:36]}"
                 )
         else:
             print(f"Total records: {s.get_total_count():,}")
             print("Race distribution:")
-            for d in s.get_race_distribution()[:15]:
+            for d in s.get_race_distribution()[:12]:
                 print(f"  {d.get('race') or '—':<20} {d.get('count'):,}")
+            print("Charge categories:")
+            for d in s.get_charge_category_distribution()[:15]:
+                print(f"  {d.get('label') or d.get('category'):<28} {d.get('count'):,}")
     finally:
         s.close()
 
 
 def cmd_misclassify(args: argparse.Namespace) -> None:
     """Primary purpose: ethnic surname vs recorded race mismatches."""
+    from .charge_classifications import category_label
     from .searcher import ArrestSearcher
 
     s = ArrestSearcher(args.database or "data/arrests.db")
     eth = None if (args.ethnicity or "all") == "all" else args.ethnicity
+    charge = None if (args.charge or "all") == "all" else args.charge
     print("\n" + "=" * 60)
     print("  Ethnic misclassification analysis (PRIMARY PURPOSE)")
     print("=" * 60)
     print(f"  DB records: {s.get_total_count():,}")
     print(f"  Ethnicity filter: {args.ethnicity}")
+    print(f"  Charge filter: {args.charge}")
     print(f"  Min confidence: {args.confidence}")
     print("  Note: only rows with names are analyzed.\n")
     try:
@@ -175,6 +191,7 @@ def cmd_misclassify(args: argparse.Namespace) -> None:
             min_confidence=args.confidence,
             limit=args.limit,
             ethnicity_filter=eth,
+            charge_category=charge,
             return_base_count=True,
             named_only=True,
         )
@@ -188,15 +205,18 @@ def cmd_misclassify(args: argparse.Namespace) -> None:
             name = (
                 f"{rec.get('first_name') or ''} {rec.get('last_name') or ''}"
             ).strip() or rec.get("full_name") or "—"
+            cat = rec.get("charge_category") or ""
             print(
-                f"  {name:<28} race={mc.expected_race:<12} "
-                f"likely={mc.likely_ethnicity:<18} conf={mc.confidence:.2f}  "
-                f"{(rec.get('charge_description') or '')[:35]}"
+                f"  {name:<26} race={mc.expected_race:<10} "
+                f"likely={mc.likely_ethnicity:<16} conf={mc.confidence:.2f}  "
+                f"[{category_label(cat) if cat else '—'}] "
+                f"{(rec.get('charge_description') or '')[:28]}"
             )
         if args.export:
             n = s.export_misclassifications(
                 args.export,
                 ethnicity_filter=eth,
+                charge_category=charge,
                 min_confidence=args.confidence,
                 limit=args.limit,
             )
@@ -204,6 +224,21 @@ def cmd_misclassify(args: argparse.Namespace) -> None:
     finally:
         s.close()
     print("=" * 60 + "\n")
+
+
+def cmd_reclassify(args: argparse.Namespace) -> None:
+    """Backfill charge_category on existing DB rows."""
+    from .database import Database
+
+    db = Database(args.database or "data/arrests.db")
+    try:
+        n = db.reclassify_charges()
+        dist = db.get_charge_category_distribution()
+    finally:
+        db.close()
+    print(f"Reclassified {n:,} rows.")
+    for d in dist:
+        print(f"  {d['label']:<28} {d['count']:,}")
 
 
 def cmd_dedupe(args: argparse.Namespace) -> None:
@@ -256,10 +291,21 @@ def main() -> None:
     pi.add_argument("--force", action="store_true")
     pi.add_argument("--database", "-d", default="data/arrests.db")
 
+    from .charge_classifications import list_category_choices
+
+    charge_choices = list_category_choices(include_all=True)
+
     pse = sub.add_parser("search", help="Search local arrest DB")
     pse.add_argument("--name", type=str)
     pse.add_argument("--state", type=str)
     pse.add_argument("--race", type=str)
+    pse.add_argument(
+        "--charge",
+        type=str,
+        default="all",
+        choices=charge_choices,
+        help="Charge category filter (sex_crimes, burglary_be, drugs, …)",
+    )
     pse.add_argument("--limit", type=int, default=100)
     pse.add_argument("--database", "-d", default="data/arrests.db")
 
@@ -276,6 +322,13 @@ def main() -> None:
             "native_american", "european",
         ],
     )
+    pm.add_argument(
+        "--charge",
+        type=str,
+        default="all",
+        choices=charge_choices,
+        help="Only analyze rows in this charge category",
+    )
     pm.add_argument("--confidence", type=float, default=0.5)
     pm.add_argument("--limit", type=int, default=0, help="0 = scan all named rows")
     pm.add_argument("--max-display", type=int, default=30)
@@ -287,6 +340,12 @@ def main() -> None:
     pd.add_argument("--dry-run", action="store_true")
     pd.add_argument("--database", "-d", default="data/arrests.db")
 
+    pr = sub.add_parser(
+        "reclassify-charges",
+        help="Backfill charge_category on all existing rows",
+    )
+    pr.add_argument("--database", "-d", default="data/arrests.db")
+
     args = p.parse_args()
     {
         "status": cmd_status,
@@ -295,6 +354,7 @@ def main() -> None:
         "search": cmd_search,
         "misclassify": cmd_misclassify,
         "dedupe": cmd_dedupe,
+        "reclassify-charges": cmd_reclassify,
     }[args.command](args)
 
 

@@ -17,6 +17,10 @@ import customtkinter as ctk
 from tkinter import filedialog, messagebox, ttk
 
 from scraper.app_settings import DEFAULTS, load_settings, save_settings
+from scraper.charge_classifications import (
+    category_label,
+    list_category_choices,
+)
 from scraper.config import SOURCES, get_bulk_sources, get_named_sources
 from scraper.database import Database
 from scraper.searcher import ArrestSearcher
@@ -138,12 +142,24 @@ class ArrestArchiverApp(ctk.CTk):
         ctk.CTkComboBox(
             bar,
             variable=self.mc_eth,
-            width=180,
+            width=160,
             values=[
                 "all", "hispanic", "asian", "indian", "indian_high_confidence",
                 "african_american", "arabic", "jewish", "portuguese",
                 "native_american", "european",
             ],
+            fg_color=C["bg"], border_color=C["border"], button_color=C["elevated"],
+            text_color=C["text"], dropdown_fg_color=C["panel"],
+        ).pack(side="left", padx=(0, 10))
+        ctk.CTkLabel(bar, text="Charge", font=FONT_SM, text_color=C["muted"]).pack(
+            side="left", padx=(0, 6)
+        )
+        self.mc_charge = ctk.StringVar(value="all")
+        ctk.CTkComboBox(
+            bar,
+            variable=self.mc_charge,
+            width=150,
+            values=list_category_choices(include_all=True),
             fg_color=C["bg"], border_color=C["border"], button_color=C["elevated"],
             text_color=C["text"], dropdown_fg_color=C["panel"],
         ).pack(side="left", padx=(0, 10))
@@ -168,9 +184,10 @@ class ArrestArchiverApp(ctk.CTk):
             tab,
             text=(
                 "Compares surname ethnicity lists to the race field on each arrest row. "
-                "Only records with names are scored. Prefer Montgomery MD / King Co WA feeds."
+                "Filter by charge category (sex_crimes, burglary_be, drugs, …). "
+                "Only records with names are scored."
             ),
-            font=FONT_SM, text_color=C["dim"], wraplength=900, justify="left",
+            font=FONT_SM, text_color=C["dim"], wraplength=980, justify="left",
         ).pack(anchor="w", padx=14, pady=(0, 8))
 
         self.mc_status = ctk.CTkLabel(tab, text="Run Analyze to scan.", font=FONT_SM, text_color=C["muted"])
@@ -178,12 +195,13 @@ class ArrestArchiverApp(ctk.CTk):
 
         tree_fr = ctk.CTkFrame(tab, fg_color=C["panel"])
         tree_fr.pack(fill="both", expand=True, padx=12, pady=10)
-        cols = ("name", "race", "likely", "conf", "charge", "state")
+        cols = ("name", "race", "likely", "conf", "category", "charge", "state")
         self.mc_tree = ttk.Treeview(tree_fr, columns=cols, show="headings", height=18)
         for c, t, w in (
-            ("name", "Name", 160), ("race", "Recorded race", 110),
-            ("likely", "Likely ethnicity", 140), ("conf", "Conf", 60),
-            ("charge", "Charge", 220), ("state", "State", 50),
+            ("name", "Name", 140), ("race", "Recorded race", 100),
+            ("likely", "Likely ethnicity", 130), ("conf", "Conf", 55),
+            ("category", "Charge cat.", 110), ("charge", "Charge", 200),
+            ("state", "ST", 40),
         ):
             self.mc_tree.heading(c, text=t)
             self.mc_tree.column(c, width=w, anchor="w")
@@ -196,6 +214,8 @@ class ArrestArchiverApp(ctk.CTk):
     def _run_misclass(self) -> None:
         eth = self.mc_eth.get()
         eth_f = None if eth == "all" else eth
+        ch = self.mc_charge.get()
+        ch_f = None if ch == "all" else ch
         try:
             conf = float(self.mc_conf.get())
         except (TypeError, ValueError):
@@ -206,6 +226,7 @@ class ArrestArchiverApp(ctk.CTk):
                 min_confidence=conf,
                 limit=0,
                 ethnicity_filter=eth_f,
+                charge_category=ch_f,
                 return_base_count=True,
                 named_only=True,
             )
@@ -219,6 +240,7 @@ class ArrestArchiverApp(ctk.CTk):
             name = (
                 f"{rec.get('first_name') or ''} {rec.get('last_name') or ''}"
             ).strip() or rec.get("full_name") or "—"
+            cat = rec.get("charge_category") or ""
             self.mc_tree.insert(
                 "", "end",
                 values=(
@@ -226,19 +248,21 @@ class ArrestArchiverApp(ctk.CTk):
                     mc.expected_race,
                     mc.likely_ethnicity,
                     f"{mc.confidence:.3f}",
-                    (rec.get("charge_description") or "")[:60],
+                    category_label(cat) if cat else "—",
+                    (rec.get("charge_description") or "")[:55],
                     rec.get("state") or "",
                 ),
             )
         rate = (len(results) / base * 100.0) if base else 0.0
         self.mc_status.configure(
             text=(
-                f"DB {total:,} rows · named surname matches {base:,} · "
-                f"misclassified {len(results):,} ({rate:.1f}% of matches)"
+                f"DB {total:,} rows · named matches {base:,} · "
+                f"misclassified {len(results):,} ({rate:.1f}%)"
+                + (f" · charge={ch}" if ch_f else "")
             )
         )
         self.log(
-            f"Misclass: {len(results)} / base {base} (eth={eth}, conf>={conf})"
+            f"Misclass: {len(results)} / base {base} (eth={eth}, charge={ch}, conf>={conf})"
         )
 
     def _export_misclass(self) -> None:
@@ -249,10 +273,15 @@ class ArrestArchiverApp(ctk.CTk):
             return
         eth = self.mc_eth.get()
         eth_f = None if eth == "all" else eth
+        ch = self.mc_charge.get()
+        ch_f = None if ch == "all" else ch
         searcher = ArrestSearcher(self.db_path)
         try:
             n = searcher.export_misclassifications(
-                path, ethnicity_filter=eth_f, min_confidence=float(self.mc_conf.get())
+                path,
+                ethnicity_filter=eth_f,
+                charge_category=ch_f,
+                min_confidence=float(self.mc_conf.get()),
             )
         finally:
             searcher.close()
@@ -378,8 +407,20 @@ class ArrestArchiverApp(ctk.CTk):
         bar.pack(fill="x", padx=12, pady=12)
         self.search_name = ctk.StringVar()
         ctk.CTkEntry(
-            bar, textvariable=self.search_name, width=220, placeholder_text="Name",
+            bar, textvariable=self.search_name, width=180, placeholder_text="Name (optional)",
             fg_color=C["bg"], border_color=C["border"], text_color=C["text"],
+        ).pack(side="left", padx=(0, 8))
+        ctk.CTkLabel(bar, text="Charge", font=FONT_SM, text_color=C["muted"]).pack(
+            side="left", padx=(0, 4)
+        )
+        self.search_charge = ctk.StringVar(value="all")
+        ctk.CTkComboBox(
+            bar,
+            variable=self.search_charge,
+            width=150,
+            values=list_category_choices(include_all=True),
+            fg_color=C["bg"], border_color=C["border"], button_color=C["elevated"],
+            text_color=C["text"], dropdown_fg_color=C["panel"],
         ).pack(side="left", padx=(0, 8))
         ctk.CTkButton(
             bar, text="Search", width=100, command=self._run_search,
@@ -387,11 +428,11 @@ class ArrestArchiverApp(ctk.CTk):
         ).pack(side="left")
         tree_fr = ctk.CTkFrame(tab, fg_color=C["panel"])
         tree_fr.pack(fill="both", expand=True, padx=12, pady=10)
-        cols = ("name", "race", "charge", "state", "date")
+        cols = ("name", "race", "category", "charge", "state", "date")
         self.search_tree = ttk.Treeview(tree_fr, columns=cols, show="headings")
         for c, t, w in (
-            ("name", "Name", 160), ("race", "Race", 100), ("charge", "Charge", 280),
-            ("state", "ST", 40), ("date", "Date", 100),
+            ("name", "Name", 140), ("race", "Race", 90), ("category", "Category", 120),
+            ("charge", "Charge", 240), ("state", "ST", 40), ("date", "Date", 100),
         ):
             self.search_tree.heading(c, text=t)
             self.search_tree.column(c, width=w)
@@ -399,11 +440,14 @@ class ArrestArchiverApp(ctk.CTk):
 
     def _run_search(self) -> None:
         name = (self.search_name.get() or "").strip()
-        if not name:
+        ch = self.search_charge.get()
+        ch_f = None if ch == "all" else ch
+        if not name and not ch_f:
+            messagebox.showinfo("Search", "Enter a name and/or pick a charge category.")
             return
         s = ArrestSearcher(self.db_path)
         try:
-            res = s.search_by_name(name, limit=200)
+            res = s.search(name=name or None, charge_category=ch_f, limit=300)
         finally:
             s.close()
         self.search_tree.delete(*self.search_tree.get_children())
@@ -411,16 +455,18 @@ class ArrestArchiverApp(ctk.CTk):
             nm = (
                 f"{r.get('first_name') or ''} {r.get('last_name') or ''}"
             ).strip() or r.get("full_name") or "—"
+            cat = r.get("charge_category") or ""
             self.search_tree.insert(
                 "", "end",
                 values=(
                     nm, r.get("race") or "",
+                    category_label(cat) if cat else "—",
                     (r.get("charge_description") or "")[:80],
                     r.get("state") or "",
                     r.get("arrest_date") or r.get("booking_date") or "",
                 ),
             )
-        self.log(f"Search '{name}': {len(res.records)} hits")
+        self.log(f"Search name={name!r} charge={ch}: {len(res.records)} hits")
 
     # ----- Integrity -----
     def _build_integrity(self, tab):
@@ -450,6 +496,20 @@ class ArrestArchiverApp(ctk.CTk):
             db.close()
         o = rep["overall"]
         extra = sum(g["count"] - 1 for g in dups)
+        charge_lines = ""
+        try:
+            db2 = Database(self.db_path)
+            try:
+                cats = db2.get_charge_category_distribution()
+            finally:
+                db2.close()
+            top = cats[:8]
+            if top:
+                charge_lines = "\nCharge categories: " + ", ".join(
+                    f"{c['label']} {c['count']:,}" for c in top
+                )
+        except Exception:
+            pass
         self.integrity_label.configure(
             text=(
                 f"Total: {o['total']:,}\n"
@@ -457,6 +517,7 @@ class ArrestArchiverApp(ctk.CTk):
                 f"With race: {o['with_race']:,} ({o.get('pct_race', 0)}%)\n"
                 f"With charge: {o['with_charge']:,} ({o.get('pct_charge', 0)}%)\n"
                 f"Duplicate source_url extra rows: {extra:,}"
+                f"{charge_lines}"
             )
         )
         self._refresh_header()

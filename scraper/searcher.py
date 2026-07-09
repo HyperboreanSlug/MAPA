@@ -197,18 +197,58 @@ class ArrestSearcher:
         name: str,
         state: Optional[str] = None,
         race: Optional[str] = None,
+        charge_category: Optional[str] = None,
         limit: int = 1000,
         offset: int = 0,
     ) -> SearchResults:
         start = time.time()
         records = self.db.search_by_name(
-            name, state=state, race=race, limit=limit, offset=offset
+            name,
+            state=state,
+            race=race,
+            charge_category=charge_category,
+            limit=limit,
+            offset=offset,
         )
         return SearchResults(
             records=records,
             total_count=len(records),
             query_time_ms=(time.time() - start) * 1000,
-            filters_applied={"name": name, "state": state or "", "race": race or ""},
+            filters_applied={
+                "name": name,
+                "state": state or "",
+                "race": race or "",
+                "charge_category": charge_category or "",
+            },
+        )
+
+    def search(
+        self,
+        *,
+        name: Optional[str] = None,
+        state: Optional[str] = None,
+        race: Optional[str] = None,
+        charge_category: Optional[str] = None,
+        limit: int = 1000,
+    ) -> SearchResults:
+        start = time.time()
+        records = self.db.search_records(
+            name=name,
+            state=state,
+            race=race,
+            charge_category=charge_category,
+            limit=limit,
+        )
+        return SearchResults(
+            records=records,
+            total_count=len(records),
+            query_time_ms=(time.time() - start) * 1000,
+            filters_applied={
+                "name": name or "",
+                "state": state or "",
+                "race": race or "",
+                "charge_category": charge_category or "",
+            },
         )
 
     def analyze_ethnicities(
@@ -216,6 +256,7 @@ class ArrestSearcher:
         min_confidence: float = 0.5,
         limit: int = 0,
         ethnicity_filter: Optional[str] = None,
+        charge_category: Optional[str] = None,
         return_base_count: bool = False,
         named_only: bool = True,
     ):
@@ -224,10 +265,16 @@ class ArrestSearcher:
 
         Only rows with a last/full name can be classified. Open-data sources
         without names never appear here (by design when named_only=True).
+        Optional charge_category narrows to e.g. sex_crimes or burglary_be.
         """
+        from .charge_classifications import classify_charge
+
         misclassifications: List[Misclassification] = []
         base_count = 0
         filter_key = (ethnicity_filter or "").strip().lower() or None
+        charge_f = (charge_category or "").strip().lower() or None
+        if charge_f in ("all", "*", ""):
+            charge_f = None
         hc_only = filter_key in (
             "indian_high_confidence",
             "high_confidence_indian",
@@ -242,7 +289,16 @@ class ArrestSearcher:
             limit=scan_limit,
             newest_first=newest_first,
             named_only=named_only,
+            charge_category=charge_f,
         ):
+            # Fallback classify if column empty (legacy rows)
+            if charge_f:
+                cat = (record.get("charge_category") or "").strip().lower()
+                if not cat or cat == "unknown":
+                    cat = classify_charge(record)
+                    record["charge_category"] = cat
+                if cat != charge_f:
+                    continue
             last_name = _last_name_from_record(record)
             recorded_race = (record.get("race") or "").strip()
             if not last_name:
@@ -260,6 +316,8 @@ class ArrestSearcher:
             base_count += 1
             if _is_compatible(likely_eth, recorded_race):
                 continue
+            if not record.get("charge_category"):
+                record["charge_category"] = classify_charge(record)
             misclassifications.append(
                 Misclassification(
                     record=record,
@@ -290,22 +348,27 @@ class ArrestSearcher:
         self,
         output_path: str,
         ethnicity_filter: Optional[str] = None,
+        charge_category: Optional[str] = None,
         min_confidence: float = 0.5,
         limit: int = 0,
     ) -> int:
         import csv
 
+        from .charge_classifications import category_label
+
         results = self.analyze_ethnicities(
             min_confidence=min_confidence,
             limit=limit,
             ethnicity_filter=ethnicity_filter,
+            charge_category=charge_category,
         )
         if not results:
             with open(output_path, "w", newline="", encoding="utf-8") as f:
                 csv.writer(f).writerow(
                     [
                         "name", "recorded_race", "likely_ethnicity", "confidence",
-                        "charge", "state", "arrest_date", "source_system",
+                        "charge", "charge_category", "state", "arrest_date",
+                        "source_system",
                     ]
                 )
             return 0
@@ -314,7 +377,8 @@ class ArrestSearcher:
                 f,
                 fieldnames=[
                     "name", "recorded_race", "likely_ethnicity", "confidence",
-                    "charge", "state", "arrest_date", "source_system", "source_url",
+                    "charge", "charge_category", "state", "arrest_date",
+                    "source_system", "source_url",
                 ],
             )
             w.writeheader()
@@ -323,18 +387,23 @@ class ArrestSearcher:
                 name = (
                     f"{rec.get('first_name') or ''} {rec.get('last_name') or ''}"
                 ).strip() or (rec.get("full_name") or "")
+                cat = rec.get("charge_category") or ""
                 w.writerow({
                     "name": name,
                     "recorded_race": mc.expected_race,
                     "likely_ethnicity": mc.likely_ethnicity,
                     "confidence": f"{mc.confidence:.3f}",
                     "charge": rec.get("charge_description") or "",
+                    "charge_category": category_label(cat) if cat else "",
                     "state": rec.get("state") or "",
                     "arrest_date": rec.get("arrest_date") or rec.get("booking_date") or "",
                     "source_system": rec.get("source_system") or "",
                     "source_url": rec.get("source_url") or "",
                 })
         return len(results)
+
+    def get_charge_category_distribution(self):
+        return self.db.get_charge_category_distribution()
 
     def close(self) -> None:
         self.db.close()
