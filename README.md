@@ -11,9 +11,11 @@ There is **no national bulk named-arrest feed**. Coverage is city/county open-da
 ## Features
 
 - **Bulk open-data scrapers** (Socrata SODA + direct CSV)
-- **SQLite** archive with import / dedupe
-- **Misclassification analysis** (primary) — same ethnic surname lists as the SOR archiver
-- **Search**, integrity coverage, CLI + dark GUI
+- **SQLite** archive with import / enhanced dedupe (merge multi-state + multi-charge)
+- **Misclassification analysis** (primary) — same ethnic surname + **first-name confidence** as SOR archiver
+- **Charge categories** (sex crimes, B&E, drugs, …) with filters
+- **Statistics** tab: misclassified-as **Black / White / Other**, by ethnicity, by charge
+- **Search**, integrity, CLI + dark GUI (sortable columns)
 - Source catalog with `has_names` flag
 
 ## Requirements

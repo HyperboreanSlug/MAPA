@@ -174,14 +174,27 @@ def _is_compatible(likely_ethnicity: str, recorded_race: str) -> bool:
 
 
 def _last_name_from_record(record: Dict[str, Any]) -> str:
-    last = (record.get("last_name") or "").strip()
+    last = (record.get("last_name") or record.get("LastName") or "").strip()
     if last:
         return last
-    full = (record.get("full_name") or "").strip()
+    full = (record.get("full_name") or record.get("Name") or "").strip()
     if full:
         parts = full.replace(",", " ").split()
         if parts:
             return parts[-1]
+    return ""
+
+
+def _first_name_from_record(record: Dict[str, Any]) -> str:
+    """Given name only (no middle) — used with SOR-parity first-name confidence."""
+    first = (record.get("first_name") or record.get("FirstName") or "").strip()
+    if first:
+        return first.split()[0]
+    full = (record.get("full_name") or record.get("Name") or "").strip()
+    if full:
+        parts = full.replace(",", " ").split()
+        if len(parts) >= 2:
+            return parts[0]
     return ""
 
 
@@ -300,13 +313,15 @@ class ArrestSearcher:
                 if cat != charge_f:
                     continue
             last_name = _last_name_from_record(record)
+            first_name = _first_name_from_record(record)
             recorded_race = (record.get("race") or "").strip()
             if not last_name:
                 continue
             if hc_only and not self.ethnic_db.is_indian_high_confidence_surname(last_name):
                 continue
+            # Parity with SOR: first-name scoring + ambiguous surname floors
             likely_eth, confidence, matching_names = self.ethnic_db.classify_by_name(
-                last_name
+                last_name, first_name=first_name or None
             )
             if confidence < min_confidence or likely_eth == "Unknown":
                 continue
@@ -318,6 +333,9 @@ class ArrestSearcher:
                 continue
             if not record.get("charge_category"):
                 record["charge_category"] = classify_charge(record)
+            # Persist analysis fields on the in-memory row for export/UI
+            record["likely_ethnicity"] = likely_eth
+            record["name_confidence"] = confidence
             misclassifications.append(
                 Misclassification(
                     record=record,

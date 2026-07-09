@@ -8,10 +8,12 @@ in publicly published arrest/booking open data.
 
 from __future__ import annotations
 
-import queueing
+import queue
+import re
 import threading
+from collections import Counter
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import customtkinter as ctk
 from tkinter import filedialog, messagebox, ttk
@@ -44,19 +46,114 @@ FONT_BOLD = ("Segoe UI", 13, "bold")
 FONT_TITLE = ("Segoe UI", 18, "bold")
 
 
+def _setup_dark_treeview() -> None:
+    style = ttk.Style()
+    try:
+        style.theme_use("clam")
+    except Exception:
+        pass
+    style.configure(
+        "Dark.Treeview",
+        background=C["panel"],
+        fieldbackground=C["panel"],
+        foreground=C["text"],
+        borderwidth=0,
+        rowheight=24,
+    )
+    style.configure(
+        "Dark.Treeview.Heading",
+        background=C["elevated"],
+        foreground=C["muted"],
+        relief="flat",
+    )
+    style.map("Dark.Treeview", background=[("selected", C["accent"])])
+
+
+def _misclass_race_bucket(recorded_race: Optional[str]) -> str:
+    """Parity with SOR Statistics: Black / White / Other only."""
+    key = (recorded_race or "").strip().upper()
+    if key in ("WHITE", "W", "CAUCASIAN", "CAUCASION"):
+        return "White"
+    if key in (
+        "BLACK", "B", "AFRICAN AMERICAN", "AFRICAN-AMERICAN",
+        "BLACK OR AFRICAN AMERICAN",
+    ):
+        return "Black"
+    return "Other"
+
+
+def _tree_cell_sort_key(val: Any):
+    s = str(val if val is not None else "").strip()
+    if not s or s in ("—", "–", "-", "N/A", "n/a", "None"):
+        return (2, 0.0, "")
+    cleaned = s.replace(",", "").replace("\u00a0", " ").strip()
+    if cleaned.endswith("%"):
+        cleaned = cleaned[:-1].strip()
+    try:
+        return (0, float(cleaned), "")
+    except ValueError:
+        pass
+    m = re.match(r"^([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)", cleaned)
+    if m:
+        try:
+            return (0, float(m.group(1)), s.casefold())
+        except ValueError:
+            pass
+    return (1, 0.0, s.casefold())
+
+
+def _enable_tree_column_sort(
+    tree: ttk.Treeview,
+    columns: List[str],
+    labels: Optional[Dict[str, str]] = None,
+) -> None:
+    labels = labels or {c: c.upper() for c in columns}
+    state: Dict[str, Any] = {"col": None, "reverse": False}
+
+    def apply_sort(col: str, reverse: bool, update_headings: bool = True) -> None:
+        rows = [(tree.set(iid, col), iid) for iid in tree.get_children("")]
+        rows.sort(key=lambda t: _tree_cell_sort_key(t[0]), reverse=reverse)
+        for idx, (_val, iid) in enumerate(rows):
+            tree.move(iid, "", idx)
+        state["col"] = col
+        state["reverse"] = reverse
+        if update_headings:
+            for c in columns:
+                base = labels.get(c, c.upper())
+                if c == col:
+                    arrow = " ▼" if reverse else " ▲"
+                    tree.heading(
+                        c, text=base + arrow, command=lambda cc=c: on_heading(cc)
+                    )
+                else:
+                    tree.heading(c, text=base, command=lambda cc=c: on_heading(cc))
+
+    def on_heading(col: str) -> None:
+        reverse = state["col"] == col and not state["reverse"]
+        apply_sort(col, reverse)
+
+    for c in columns:
+        tree.heading(
+            c, text=labels.get(c, c.upper()), command=lambda cc=c: on_heading(cc)
+        )
+
+
 class ArrestArchiverApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         ctk.set_appearance_mode("dark")
+        _setup_dark_treeview()
         self.title("Arrest Public Archiver — Ethnic Misclassification")
-        self.geometry("1100x720")
-        self.minsize(900, 600)
+        self.geometry("1180x760")
+        self.minsize(960, 640)
         self.configure(fg_color=C["bg"])
 
         self.app_settings = load_settings()
         self.db_path = self.app_settings.get("db_path") or DEFAULTS["db_path"]
         self.log_queue: queue.Queue = queue.Queue()
         self.is_running = False
+        self._mc_results = []
+        self._mc_meta: Dict[str, Any] = {}
 
         header = ctk.CTkFrame(self, fg_color=C["surface"], height=52, corner_radius=0)
         header.pack(fill="x")
@@ -86,11 +183,14 @@ class ArrestArchiverApp(ctk.CTk):
             text_color=C["text"],
         )
         self.tabs.pack(fill="both", expand=True, padx=10, pady=10)
-        # Misclassify first — primary purpose
-        for name in ("Misclassify", "Scrape", "Search", "Integrity", "Settings"):
+        # Misclassify first — primary purpose (parity with SOR Browse layout)
+        for name in (
+            "Misclassify", "Statistics", "Scrape", "Search", "Integrity", "Settings"
+        ):
             self.tabs.add(name)
 
         self._build_misclassify(self.tabs.tab("Misclassify"))
+        self._build_statistics(self.tabs.tab("Statistics"))
         self._build_scrape(self.tabs.tab("Scrape"))
         self._build_search(self.tabs.tab("Search"))
         self._build_integrity(self.tabs.tab("Integrity"))
@@ -196,15 +296,19 @@ class ArrestArchiverApp(ctk.CTk):
         tree_fr = ctk.CTkFrame(tab, fg_color=C["panel"])
         tree_fr.pack(fill="both", expand=True, padx=12, pady=10)
         cols = ("name", "race", "likely", "conf", "category", "charge", "state")
-        self.mc_tree = ttk.Treeview(tree_fr, columns=cols, show="headings", height=18)
-        for c, t, w in (
-            ("name", "Name", 140), ("race", "Recorded race", 100),
-            ("likely", "Likely ethnicity", 130), ("conf", "Conf", 55),
-            ("category", "Charge cat.", 110), ("charge", "Charge", 200),
-            ("state", "ST", 40),
+        self.mc_tree = ttk.Treeview(
+            tree_fr, columns=cols, show="headings", height=18, style="Dark.Treeview"
+        )
+        col_labels = {
+            "name": "Name", "race": "Recorded race", "likely": "Likely ethnicity",
+            "conf": "Conf", "category": "Charge cat.", "charge": "Charge", "state": "ST",
+        }
+        for c, w in (
+            ("name", 140), ("race", 100), ("likely", 130), ("conf", 55),
+            ("category", 110), ("charge", 200), ("state", 40),
         ):
-            self.mc_tree.heading(c, text=t)
             self.mc_tree.column(c, width=w, anchor="w")
+        _enable_tree_column_sort(self.mc_tree, list(cols), labels=col_labels)
         sb = ttk.Scrollbar(tree_fr, orient="vertical", command=self.mc_tree.yview)
         self.mc_tree.configure(yscrollcommand=sb.set)
         self.mc_tree.pack(side="left", fill="both", expand=True)
@@ -254,16 +358,154 @@ class ArrestArchiverApp(ctk.CTk):
                 ),
             )
         rate = (len(results) / base * 100.0) if base else 0.0
+        self._mc_meta = {
+            "db_total": total,
+            "eth_base": base,
+            "eth_filter": eth,
+            "charge_filter": ch,
+            "min_conf": conf,
+        }
         self.mc_status.configure(
             text=(
                 f"DB {total:,} rows · named matches {base:,} · "
                 f"misclassified {len(results):,} ({rate:.1f}%)"
                 + (f" · charge={ch}" if ch_f else "")
+                + " · see Statistics tab"
             )
         )
         self.log(
             f"Misclass: {len(results)} / base {base} (eth={eth}, charge={ch}, conf>={conf})"
         )
+        self._update_statistics()
+
+    def _build_statistics(self, tab) -> None:
+        """Parity with SOR Statistics: rates + misclassified-as Black/White/Other."""
+        tab.configure(fg_color=C["surface"])
+        ctk.CTkLabel(
+            tab,
+            text="Statistics update when you run Analyze on the Misclassify tab.",
+            font=FONT_SM, text_color=C["dim"],
+        ).pack(anchor="w", padx=14, pady=(12, 6))
+        sum_row = ctk.CTkFrame(tab, fg_color="transparent")
+        sum_row.pack(fill="x", padx=12, pady=4)
+        self.stat_db = ctk.CTkLabel(sum_row, text="DB: —", font=FONT_BOLD, text_color=C["text"])
+        self.stat_db.pack(side="left", padx=(0, 16))
+        self.stat_base = ctk.CTkLabel(sum_row, text="Ethnicity matches: —", font=FONT_SM, text_color=C["muted"])
+        self.stat_base.pack(side="left", padx=(0, 16))
+        self.stat_n = ctk.CTkLabel(sum_row, text="Misclassified: —", font=FONT_SM, text_color=C["muted"])
+        self.stat_n.pack(side="left", padx=(0, 16))
+        self.stat_rate = ctk.CTkLabel(sum_row, text="Rate: —", font=FONT_SM, text_color=C["muted"])
+        self.stat_rate.pack(side="left")
+
+        self.stat_filter = ctk.CTkLabel(tab, text="", font=FONT_SM, text_color=C["dim"])
+        self.stat_filter.pack(anchor="w", padx=14, pady=(0, 8))
+
+        mid = ctk.CTkFrame(tab, fg_color="transparent")
+        mid.pack(fill="both", expand=True, padx=12, pady=6)
+
+        left = ctk.CTkFrame(mid, fg_color=C["panel"])
+        left.pack(side="left", fill="both", expand=True, padx=(0, 6))
+        ctk.CTkLabel(
+            left, text="Misclassified as (race) — Black / White / Other",
+            font=FONT_BOLD, text_color=C["text"],
+        ).pack(anchor="w", padx=10, pady=(10, 4))
+        self.stat_race_summary = ctk.CTkLabel(
+            left, text="Run Analyze first.", font=FONT_SM, text_color=C["muted"],
+            justify="left",
+        )
+        self.stat_race_summary.pack(anchor="w", padx=10, pady=(0, 10))
+
+        right = ctk.CTkFrame(mid, fg_color=C["panel"])
+        right.pack(side="left", fill="both", expand=True, padx=(6, 0))
+        ctk.CTkLabel(
+            right, text="By likely ethnicity", font=FONT_BOLD, text_color=C["text"],
+        ).pack(anchor="w", padx=10, pady=(10, 4))
+        cols = ("eth", "count", "pct")
+        self.stat_eth_tree = ttk.Treeview(
+            right, columns=cols, show="headings", height=10, style="Dark.Treeview"
+        )
+        for c, t, w in (("eth", "Likely ethnicity", 180), ("count", "N", 60), ("pct", "%", 60)):
+            self.stat_eth_tree.heading(c, text=t)
+            self.stat_eth_tree.column(c, width=w)
+        _enable_tree_column_sort(
+            self.stat_eth_tree, list(cols),
+            labels={"eth": "Likely ethnicity", "count": "N", "pct": "%"},
+        )
+        self.stat_eth_tree.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+
+        bot = ctk.CTkFrame(tab, fg_color=C["panel"])
+        bot.pack(fill="both", expand=True, padx=12, pady=(0, 10))
+        ctk.CTkLabel(
+            bot, text="By charge category (misclassified only)",
+            font=FONT_BOLD, text_color=C["text"],
+        ).pack(anchor="w", padx=10, pady=(10, 4))
+        ccols = ("cat", "count", "pct")
+        self.stat_charge_tree = ttk.Treeview(
+            bot, columns=ccols, show="headings", height=8, style="Dark.Treeview"
+        )
+        for c, t, w in (("cat", "Charge category", 200), ("count", "N", 60), ("pct", "%", 60)):
+            self.stat_charge_tree.heading(c, text=t)
+            self.stat_charge_tree.column(c, width=w)
+        _enable_tree_column_sort(
+            self.stat_charge_tree, list(ccols),
+            labels={"cat": "Charge category", "count": "N", "pct": "%"},
+        )
+        self.stat_charge_tree.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+
+    def _update_statistics(self) -> None:
+        results = self._mc_results or []
+        meta = self._mc_meta or {}
+        n = len(results)
+        base = int(meta.get("eth_base") or 0)
+        total = int(meta.get("db_total") or 0)
+        rate = (n / base * 100.0) if base else 0.0
+        if hasattr(self, "stat_db"):
+            self.stat_db.configure(text=f"DB: {total:,}")
+            self.stat_base.configure(text=f"Ethnicity matches: {base:,}")
+            self.stat_n.configure(text=f"Misclassified: {n:,}")
+            self.stat_rate.configure(text=f"Rate: {rate:.1f}%")
+            self.stat_filter.configure(
+                text=(
+                    f"Filter: ethnicity={meta.get('eth_filter') or 'all'} · "
+                    f"charge={meta.get('charge_filter') or 'all'} · "
+                    f"min conf={meta.get('min_conf', 0.5)}"
+                )
+            )
+
+        # Black / White / Other buckets (SOR parity)
+        buckets = Counter(
+            _misclass_race_bucket(mc.expected_race) for mc in results
+        )
+        lines = []
+        for label in ("Black", "White", "Other"):
+            c = buckets.get(label, 0)
+            pct = (c / n * 100.0) if n else 0.0
+            lines.append(f"  {label}: {c:,}  ({pct:.1f}%)")
+        if hasattr(self, "stat_race_summary"):
+            self.stat_race_summary.configure(
+                text="\n".join(lines) if n else "No misclassifications in current filter."
+            )
+
+        by_eth = Counter(mc.likely_ethnicity for mc in results)
+        if hasattr(self, "stat_eth_tree"):
+            self.stat_eth_tree.delete(*self.stat_eth_tree.get_children())
+            for eth, c in by_eth.most_common():
+                pct = (c / n * 100.0) if n else 0.0
+                self.stat_eth_tree.insert(
+                    "", "end", values=(eth, c, f"{pct:.1f}%")
+                )
+
+        by_ch = Counter(
+            category_label((mc.record or {}).get("charge_category") or "unknown")
+            for mc in results
+        )
+        if hasattr(self, "stat_charge_tree"):
+            self.stat_charge_tree.delete(*self.stat_charge_tree.get_children())
+            for cat, c in by_ch.most_common():
+                pct = (c / n * 100.0) if n else 0.0
+                self.stat_charge_tree.insert(
+                    "", "end", values=(cat, c, f"{pct:.1f}%")
+                )
 
     def _export_misclass(self) -> None:
         path = filedialog.asksaveasfilename(
@@ -429,13 +671,21 @@ class ArrestArchiverApp(ctk.CTk):
         tree_fr = ctk.CTkFrame(tab, fg_color=C["panel"])
         tree_fr.pack(fill="both", expand=True, padx=12, pady=10)
         cols = ("name", "race", "category", "charge", "state", "date")
-        self.search_tree = ttk.Treeview(tree_fr, columns=cols, show="headings")
+        self.search_tree = ttk.Treeview(
+            tree_fr, columns=cols, show="headings", style="Dark.Treeview"
+        )
         for c, t, w in (
             ("name", "Name", 140), ("race", "Race", 90), ("category", "Category", 120),
             ("charge", "Charge", 240), ("state", "ST", 40), ("date", "Date", 100),
         ):
-            self.search_tree.heading(c, text=t)
             self.search_tree.column(c, width=w)
+        _enable_tree_column_sort(
+            self.search_tree, list(cols),
+            labels={
+                "name": "Name", "race": "Race", "category": "Category",
+                "charge": "Charge", "state": "ST", "date": "Date",
+            },
+        )
         self.search_tree.pack(fill="both", expand=True)
 
     def _run_search(self) -> None:
@@ -478,10 +728,15 @@ class ArrestArchiverApp(ctk.CTk):
             fg_color=C["accent"], hover_color=C["accent_hover"], text_color=C["bg"],
         ).pack(side="left")
         ctk.CTkButton(
-            bar, text="Remove URL duplicates", command=self._dedupe,
+            bar, text="Remove duplicates…", command=self._dedupe,
             fg_color=C["elevated"], hover_color=C["border"], text_color=C["text"],
             border_width=1, border_color=C["border"],
         ).pack(side="left", padx=8)
+        ctk.CTkButton(
+            bar, text="Reclassify charges", command=self._reclassify_charges,
+            fg_color=C["elevated"], hover_color=C["border"], text_color=C["text"],
+            border_width=1, border_color=C["border"],
+        ).pack(side="left", padx=4)
         self.integrity_label = ctk.CTkLabel(
             tab, text="Click Refresh.", font=FONT_SM, text_color=C["text"], justify="left"
         )
@@ -525,17 +780,39 @@ class ArrestArchiverApp(ctk.CTk):
     def _dedupe(self) -> None:
         db = Database(self.db_path)
         try:
-            preview = db.remove_duplicates("source_url", dry_run=True)
-            if preview["deleted"] <= 0:
-                messagebox.showinfo("Dedupe", "No duplicates.")
+            preview = db.remove_duplicates_all(
+                ["source_url", "name_dob"], dry_run=True, merge_fields=True
+            )
+            would = int(preview.get("total_deleted") or 0)
+            if would <= 0:
+                messagebox.showinfo("Dedupe", "No duplicates found (URL / name+DOB).")
                 return
-            if not messagebox.askyesno("Dedupe", f"Delete {preview['deleted']} duplicate rows?"):
+            if not messagebox.askyesno(
+                "Dedupe",
+                f"Delete {would:,} duplicate rows?\n"
+                f"(Merges multi-state / multi-charge details onto keeper first.)",
+            ):
                 return
-            r = db.remove_duplicates("source_url", dry_run=False)
+            r = db.remove_duplicates_all(
+                ["source_url", "name_dob"], dry_run=False, merge_fields=True
+            )
         finally:
             db.close()
-        self.log(f"Dedupe deleted {r['deleted']}")
+        self.log(
+            f"Dedupe deleted {r.get('total_deleted')} "
+            f"(merged fields {r.get('total_merged_fields')})"
+        )
         self._refresh_integrity()
+
+    def _reclassify_charges(self) -> None:
+        db = Database(self.db_path)
+        try:
+            n = db.reclassify_charges()
+        finally:
+            db.close()
+        self.log(f"Reclassified charges on {n:,} rows")
+        self._refresh_integrity()
+        messagebox.showinfo("Charges", f"Reclassified {n:,} rows.")
 
     # ----- Settings -----
     def _build_settings(self, tab):

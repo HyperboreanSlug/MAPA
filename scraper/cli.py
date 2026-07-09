@@ -247,14 +247,22 @@ def cmd_dedupe(args: argparse.Namespace) -> None:
     db = Database(args.database or "data/arrests.db")
     try:
         if args.remove:
-            r = db.remove_duplicates("source_url", dry_run=args.dry_run)
+            r = db.remove_duplicates_all(
+                ["source_url", "name_dob"],
+                dry_run=args.dry_run,
+                merge_fields=not args.no_merge,
+            )
             print(r)
         else:
-            groups = db.find_duplicate_groups("source_url")
-            extra = sum(g["count"] - 1 for g in groups)
-            print(f"Groups: {len(groups):,}  extra rows: {extra:,}")
-            for g in groups[:15]:
-                print(f"  {g['key'][:70]}  x{g['count']}")
+            for strat in ("source_url", "name_dob"):
+                try:
+                    groups = db.find_duplicate_groups(strat)
+                except ValueError:
+                    continue
+                extra = sum(g["count"] - 1 for g in groups)
+                print(f"{strat}: groups={len(groups):,}  extra_rows={extra:,}")
+                for g in groups[:8]:
+                    print(f"  {str(g['key'])[:70]}  x{g['count']}")
     finally:
         db.close()
 
@@ -335,9 +343,16 @@ def main() -> None:
     pm.add_argument("--export", type=str)
     pm.add_argument("--database", "-d", default="data/arrests.db")
 
-    pd = sub.add_parser("dedupe", help="Find/remove duplicate source_url rows")
+    pd = sub.add_parser(
+        "dedupe",
+        help="Find/remove duplicates (source_url + name+DOB; merges multi-state/charge)",
+    )
     pd.add_argument("--remove", action="store_true")
     pd.add_argument("--dry-run", action="store_true")
+    pd.add_argument(
+        "--no-merge", action="store_true",
+        help="Do not merge multi-state/multi-charge fields onto keeper",
+    )
     pd.add_argument("--database", "-d", default="data/arrests.db")
 
     pr = sub.add_parser(

@@ -165,6 +165,99 @@ class DatabaseAndMisclassTests(unittest.TestCase):
         self.assertTrue(eth.is_indian_surname("Singh") or eth.classify_by_name("Singh")[0].startswith("Indian"))
         self.assertEqual(eth.classify_by_name("Garcia")[0], "Hispanic")
 
+    def test_first_name_confidence_parity(self):
+        """SOR parity: ambiguous Indian surname + Anglo first name is low conf."""
+        eth = EthnicNameDatabase()
+        # Cristobal More should not be high-confidence Indian
+        e1, c1, _ = eth.classify_by_name("More", first_name="Cristobal")
+        self.assertFalse(
+            e1.startswith("Indian") and c1 >= 0.5,
+            f"More+Cristobal should not be high Indian conf (got {e1} {c1})",
+        )
+        # Indic first name can corroborate
+        e2, c2, _ = eth.classify_by_name("Patel", first_name="Rahul")
+        self.assertTrue(e2.startswith("Indian") or "Indian" in e2)
+        self.assertGreaterEqual(c2, 0.5)
+
+        searcher = ArrestSearcher(db_path=":memory:")
+        orphan = searcher.db
+        searcher.db = self.db
+        self.db.import_records(
+            [
+                {
+                    "first_name": "Cristobal",
+                    "last_name": "More",
+                    "race": "White",
+                    "charge_description": "Theft",
+                    "source_url": "fn:1",
+                    "state": "FL",
+                },
+                {
+                    "first_name": "Rahul",
+                    "last_name": "Patel",
+                    "race": "White",
+                    "charge_description": "Theft",
+                    "source_url": "fn:2",
+                    "state": "FL",
+                },
+            ],
+            skip_existing_urls=False,
+        )
+        try:
+            results, base = searcher.analyze_ethnicities(
+                min_confidence=0.5,
+                ethnicity_filter="indian",
+                return_base_count=True,
+            )
+            names = {
+                (
+                    (m.record.get("first_name") or ""),
+                    (m.record.get("last_name") or "").lower(),
+                )
+                for m in results
+            }
+            # Patel+Rahul should appear; More+Cristobal should not at 0.5
+            self.assertIn(("Rahul", "patel"), names)
+            self.assertNotIn(("Cristobal", "more"), names)
+        finally:
+            searcher.db = orphan
+            searcher.close()
+
+    def test_dedupe_merges_multi_state_charges(self):
+        self.db.import_records(
+            [
+                {
+                    "first_name": "A",
+                    "last_name": "Same",
+                    "date_of_birth": "1990-01-01",
+                    "state": "FL",
+                    "charge_description": "Burglary",
+                    "source_url": "m:1",
+                },
+                {
+                    "first_name": "A",
+                    "last_name": "Same",
+                    "date_of_birth": "1990-01-01",
+                    "state": "TX",
+                    "charge_description": "Theft",
+                    "source_url": "m:2",
+                    "race": "White",
+                },
+            ],
+            skip_existing_urls=False,
+        )
+        r = self.db.remove_duplicates("name_dob", dry_run=False, merge_fields=True)
+        self.assertEqual(r["deleted"], 1)
+        self.assertEqual(self.db.get_total_count(), 1)
+        row = list(self.db.iter_arrests())[0]
+        states = (row.get("state") or "")
+        self.assertIn("FL", states)
+        self.assertIn("TX", states)
+        charges = (row.get("charge_description") or "")
+        self.assertIn("Burglary", charges)
+        self.assertIn("Theft", charges)
+        self.assertEqual(row.get("race"), "White")
+
     def test_charge_classifications_and_filter(self):
         self.assertEqual(classify_charge("RAPE FIRST DEGREE"), "sex_crimes")
         self.assertEqual(classify_charge("Breaking and Entering a dwelling"), "burglary_be")
