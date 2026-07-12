@@ -3,6 +3,7 @@
 Arrest Public Archiver — desktop GUI (CustomTkinter).
 
 Dark UI for scrape / search / ethnic misclassification / RecentlyBooked / DeepFace.
+Double-click ``Launch Arrest Archiver.vbs`` (no console), or ``run_gui.bat``, or ``pythonw gui.py``.
 Tab UI lives under gui_app/ (lazy-loaded). See MODULES.md.
 """
 

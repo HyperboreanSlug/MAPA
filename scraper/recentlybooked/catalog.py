@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import xml.etree.ElementTree as ET
 from typing import List, Set
 from urllib.parse import urljoin, urlparse
 
@@ -16,12 +17,34 @@ _COUNTY_PATH = re.compile(r"^/([a-z]{2})/([a-z0-9-]+)/?$", re.IGNORECASE)
 
 
 def _links(html: str, base_url: str = BASE_URL) -> List[str]:
+    """Collect absolute hrefs from an HTML page."""
     soup = BeautifulSoup(html, "html.parser")
     return [
         urljoin(base_url, href)
         for link in soup.select("a[href]")
         if (href := link.get("href"))
     ]
+
+
+def _sitemap_locs(xml_text: str) -> List[str]:
+    """Collect ``<loc>`` URLs from a sitemap XML document."""
+    # Strip default namespace so findall("loc") works without Clark notation.
+    cleaned = re.sub(r'\sxmlns="[^"]+"', "", xml_text, count=1)
+    try:
+        root = ET.fromstring(cleaned)
+    except ET.ParseError:
+        # Fallback: treat as HTML/XML soup with an XML-aware parser if available.
+        try:
+            soup = BeautifulSoup(xml_text, "xml")
+        except Exception:
+            soup = BeautifulSoup(xml_text, "html.parser")
+        return [loc.get_text(strip=True) for loc in soup.find_all("loc") if loc.get_text(strip=True)]
+    locs: List[str] = []
+    for el in root.iter():
+        tag = el.tag.rsplit("}", 1)[-1].lower()
+        if tag == "loc" and el.text and el.text.strip():
+            locs.append(el.text.strip())
+    return locs
 
 
 def discover_states(html: str, base_url: str = BASE_URL) -> List[str]:
@@ -62,7 +85,7 @@ def discover_counties_from_sitemap(
 ) -> List[tuple[str, str]]:
     """Return sorted ``(state, county)`` pairs listed in the county sitemap."""
     pairs: Set[tuple[str, str]] = set()
-    for link in _links(client.get(sitemap_url), sitemap_url):
+    for link in _sitemap_locs(client.get(sitemap_url)):
         match = _COUNTY_PATH.match(urlparse(link).path)
         if match:
             pairs.add((match.group(1).upper(), match.group(2).lower()))

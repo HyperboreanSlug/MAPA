@@ -13,6 +13,7 @@ from gui_app.widgets import (
     _stretch_columns,
     _tree_frame,
 )
+from scraper.database import Database
 from scraper.recentlybooked import RecentlyBookedScraper
 from scraper.searcher import ArrestSearcher, _is_compatible, format_race_label
 
@@ -204,28 +205,39 @@ class RecentlyBookedTabMixin:
         self.rb_cancel = False
         state = self.rb_state.get().strip()
         county = self.rb_county.get().strip()
+        db_path = self.db_path
+        delay = float(self.app_settings.get("rb_delay") or 1.0)
+        with_photos = bool(self.app_settings.get("rb_with_photos", True))
+        with_html = bool(self.app_settings.get("rb_with_html", True))
+        scrape_all = bool(self.rb_all.get())
 
         def work():
             try:
-                with RecentlyBookedScraper(
-                    delay=float(self.app_settings.get("rb_delay") or 1.0)
-                ) as s:
-                    kw = dict(
-                        with_photos=bool(self.app_settings.get("rb_with_photos", True)),
-                        with_html=bool(self.app_settings.get("rb_with_html", True)),
-                        cancel_check=lambda: self.rb_cancel,
-                        progress_cb=lambda n, _: self.log(f"RecentlyBooked: {n} records"),
-                    )
-                    if self.rb_all.get():
-                        rows = s.scrape_all(**kw)
-                    elif county:
-                        rows = s.scrape_county(state, county, **kw)
-                    elif state:
-                        rows = s.scrape_state(state, **kw)
-                    else:
-                        self.log("Enter a state or enable All states.")
-                        return
-                r = self.db.import_records(rows, skip_existing_urls=True)
+                db = Database(db_path)
+                try:
+                    known = db.existing_source_urls()
+                    with RecentlyBookedScraper(delay=delay) as s:
+                        kw = dict(
+                            with_photos=with_photos,
+                            with_html=with_html,
+                            skip_existing_urls=known,
+                            cancel_check=lambda: self.rb_cancel,
+                            progress_cb=lambda n, _: self.log(
+                                f"RecentlyBooked: {n} records"
+                            ),
+                        )
+                        if scrape_all:
+                            rows = s.scrape_all(**kw)
+                        elif county:
+                            rows = s.scrape_county(state, county, **kw)
+                        elif state:
+                            rows = s.scrape_state(state, **kw)
+                        else:
+                            self.log("Enter a state or enable All states.")
+                            return
+                    r = db.import_records(rows, skip_existing_urls=True)
+                finally:
+                    db.close()
                 self.log(f"RecentlyBooked full scrape: +{r['imported']} imported.")
                 self.after(0, self._refresh_db_status)
             except Exception as e:

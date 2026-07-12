@@ -46,8 +46,11 @@ python -m scraper mugshot scan --source-system recentlybooked
 ### GUI
 
 ```bash
+# Preferred on Windows (no console window):
+#   double-click "Launch Arrest Archiver.vbs"
+
 python gui.py
-# or run_gui.bat
+# or run_gui.bat (also used by the .vbs launcher via pythonw)
 ```
 
 Tabs: **Browse** (Misclassify / Statistics / Search / Integrity / DeepFace review) · **RecentlyBooked** · **DeepFace** · **Scrape** · **Settings**.

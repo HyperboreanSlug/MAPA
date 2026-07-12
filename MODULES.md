@@ -13,7 +13,8 @@
 ```
 Entry points
 ├── gui.py                 # Thin bootstrap → gui_app.shell.ArrestArchiverApp
-├── run_gui.bat
+├── Launch Arrest Archiver.vbs  # Double-click: no console (calls run_gui.bat)
+├── run_gui.bat            # Core deps + start pythonw gui.py, then exit
 └── python -m scraper      # CLI
 
 gui_app/
