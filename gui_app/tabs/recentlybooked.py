@@ -279,12 +279,6 @@ class RecentlyBookedTabMixin:
         ctk.CTkButton(bar, text="Refresh", command=lambda: self._rb_refresh(False)).pack(
             side="left", padx=5, pady=8
         )
-        ctk.CTkButton(
-            bar, text="Import selected", command=lambda: self._rb_import(False)
-        ).pack(side="left", padx=5)
-        ctk.CTkButton(
-            bar, text="Import all", command=lambda: self._rb_import(True)
-        ).pack(side="left", padx=5)
         self.rb_live_auto_var = ctk.BooleanVar(value=True)
         self.rb_live_auto = ctk.CTkCheckBox(
             bar,
@@ -311,7 +305,7 @@ class RecentlyBookedTabMixin:
         self.rb_live_hide_no_photo.pack(side="left", padx=5)
         self.rb_live_status = ctk.CTkLabel(
             bar,
-            text="Live feed auto-updates every few seconds.",
+            text="Live feed auto-imports every booking it shows.",
             font=FONT_SM,
             text_color=C["muted"],
         )
@@ -422,11 +416,12 @@ class RecentlyBookedTabMixin:
             self.rb_live_sidebar.clear("Loading…")
 
         def work():
-            added = 0
             try:
                 eth = ArrestSearcher(self.db_path).ethnic_db
                 self._rb_live_eth = eth
                 delay = min(0.35, float(self.app_settings.get("rb_delay") or 1.0))
+                with_photos = bool(self.app_settings.get("rb_with_photos", True))
+                with_html = bool(self.app_settings.get("rb_with_html", True))
                 known = {
                     str(r.get("source_url") or "")
                     for r in self._rb_live_all
@@ -459,23 +454,50 @@ class RecentlyBookedTabMixin:
                             ),
                         )
                     else:
-                        with RecentlyBookedScraper(client=client) as s:
-                            # Keep homepage order (newest first) for full refresh.
-                            new_rows: List[Dict[str, Any]] = []
-                            for i, card in enumerate(to_fetch, start=1):
-                                done = s._process_record(
-                                    dict(card),
-                                    import_details=True,
-                                    with_photos=False,
-                                    with_html=False,
-                                )
-                                new_rows.append(done)
-                                if i == 1 or i % 5 == 0:
-                                    self.log(
-                                        f"Live feed: "
-                                        f"{'+' + str(i) if incremental else str(i)} "
-                                        f"loaded…"
+                        imported = 0
+                        skipped = 0
+                        new_rows: List[Dict[str, Any]] = []
+                        db = Database(self.db_path)
+                        try:
+                            with RecentlyBookedScraper(client=client) as s:
+                                for i, card in enumerate(to_fetch, start=1):
+                                    done = s._process_record(
+                                        dict(card),
+                                        import_details=True,
+                                        with_photos=with_photos,
+                                        with_html=with_html,
                                     )
+                                    try:
+                                        result = db.import_records(
+                                            [done], skip_existing_urls=True
+                                        )
+                                        imported += int(result.get("imported") or 0)
+                                        skipped += int(result.get("skipped") or 0)
+                                        url = str(done.get("source_url") or "")
+                                        if not done.get("id") and url:
+                                            found = db._conn.execute(
+                                                "SELECT id FROM arrests "
+                                                "WHERE source_url = ? "
+                                                "ORDER BY id DESC LIMIT 1",
+                                                (url,),
+                                            ).fetchone()
+                                            if found:
+                                                done["id"] = int(found[0])
+                                    except Exception as exc:
+                                        done["scrape_error"] = (
+                                            f"{done.get('scrape_error')}; import: {exc}"
+                                            if done.get("scrape_error")
+                                            else f"import: {exc}"
+                                        )
+                                    new_rows.append(done)
+                                    if i == 1 or i % 5 == 0:
+                                        self.log(
+                                            f"Live feed: "
+                                            f"{'+' + str(i) if incremental else str(i)} "
+                                            f"loaded · +{imported} imported…"
+                                        )
+                        finally:
+                            db.close()
 
                         def ui() -> None:
                             if incremental:
@@ -516,10 +538,12 @@ class RecentlyBookedTabMixin:
                                     if incremental
                                     else ""
                                 )
+                                + f" · +{imported} imported · {skipped} skipped"
                                 + f" · {mode}."
                             )
                             self.rb_live_status.configure(text=msg)
                             self.log(msg)
+                            self._refresh_db_status()
 
                         self.after(0, ui)
             except Exception as e:
@@ -530,67 +554,6 @@ class RecentlyBookedTabMixin:
                 )
             finally:
                 self.after(0, lambda: setattr(self, "_rb_live_busy", False))
-
-        threading.Thread(target=work, daemon=True).start()
-
-    def _rb_import(self, all_rows: bool):
-        # Import from currently displayed rows (respects Hide no race filter).
-        source = self._rb_records if all_rows or self._rb_records else self._rb_live_all
-        if not source and not self._rb_live_all:
-            self.log("No live-feed rows to import.")
-            return
-        if all_rows:
-            rows = list(self._rb_records if self._rb_records else self._rb_live_all)
-        else:
-            indexes = [self.rb_tree.index(i) for i in self.rb_tree.selection()]
-            rows = [
-                self._rb_records[i]
-                for i in indexes
-                if 0 <= i < len(self._rb_records)
-            ]
-        if not rows:
-            self.log("No live-feed rows selected.")
-            return
-
-        with_photos = bool(self.app_settings.get("rb_with_photos", True))
-        with_html = bool(self.app_settings.get("rb_with_html", True))
-        delay = float(self.app_settings.get("rb_delay") or 1.0)
-        need_archive = (with_photos or with_html) and any(
-            (with_photos and not r.get("photo_path"))
-            or (with_html and not r.get("html_path"))
-            for r in rows
-        )
-
-        def work():
-            try:
-                to_import = rows
-                if need_archive:
-                    self.log(
-                        f"Live feed import: archiving {len(rows)} "
-                        f"(photos={with_photos}, html={with_html})…"
-                    )
-                    with RecentlyBookedScraper(delay=delay) as s:
-                        to_import = [
-                            s._process_record(
-                                dict(r),
-                                import_details=False,
-                                with_photos=with_photos,
-                                with_html=with_html,
-                            )
-                            for r in rows
-                        ]
-                db = Database(self.db_path)
-                try:
-                    result = db.import_records(to_import, skip_existing_urls=True)
-                finally:
-                    db.close()
-                self.log(
-                    f"RecentlyBooked import: +{result['imported']}, "
-                    f"{result['skipped']} skipped."
-                )
-                self.after(0, self._refresh_db_status)
-            except Exception as e:
-                self.log(f"Live feed import failed: {e}")
 
         threading.Thread(target=work, daemon=True).start()
 
