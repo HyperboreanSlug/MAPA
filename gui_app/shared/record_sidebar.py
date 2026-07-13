@@ -99,14 +99,16 @@ def _resolve_photo_path(raw: Any) -> Optional[Path]:
 class RecordSidebar:
     """Right-hand photo + details pane bound to a tree selection."""
 
-    def __init__(self, parent: Any, *, photo_size: tuple[int, int] = (240, 240)) -> None:
+    def __init__(self, parent: Any, *, photo_size: tuple[int, int] = (200, 200)) -> None:
         self.photo_size = photo_size
-        self.frame = ctk.CTkFrame(parent, fg_color=C["panel"], width=300, corner_radius=10)
-        self.frame.pack_propagate(False)
+        self.frame = ctk.CTkFrame(parent, fg_color=C["panel"], width=360, corner_radius=10)
+        self.frame.grid_propagate(False)
+        self.frame.grid_columnconfigure(0, weight=1)
+        self.frame.grid_rowconfigure(6, weight=1)  # details row expands
 
         ctk.CTkLabel(
             self.frame, text="Details", font=FONT_BOLD, text_color=C["text"]
-        ).pack(anchor="w", padx=12, pady=(12, 4))
+        ).grid(row=0, column=0, sticky="w", padx=12, pady=(12, 4))
 
         self.photo = ctk.CTkLabel(
             self.frame,
@@ -117,70 +119,73 @@ class RecordSidebar:
             fg_color=C["elevated"],
             corner_radius=8,
         )
-        self.photo.pack(padx=12, pady=8)
+        self.photo.grid(row=1, column=0, padx=12, pady=(4, 8), sticky="n")
 
         btn_row = ctk.CTkFrame(self.frame, fg_color="transparent")
-        btn_row.pack(fill="x", padx=12, pady=(0, 4))
+        btn_row.grid(row=2, column=0, sticky="ew", padx=12, pady=(0, 6))
+        btn_row.grid_columnconfigure((0, 1), weight=1)
         self.open_btn = ctk.CTkButton(
             btn_row,
             text="Open source URL",
-            width=140,
             command=self._open_source,
             state="disabled",
+            height=32,
         )
-        self.open_btn.pack(side="left")
+        self.open_btn.grid(row=0, column=0, sticky="ew", padx=(0, 4))
         self.open_photo_btn = ctk.CTkButton(
             btn_row,
             text="Open photo",
-            width=100,
             command=self._open_photo_file,
             state="disabled",
+            height=32,
         )
-        self.open_photo_btn.pack(side="left", padx=(8, 0))
+        self.open_photo_btn.grid(row=0, column=1, sticky="ew", padx=(4, 0))
 
         verdict_row = ctk.CTkFrame(self.frame, fg_color="transparent")
-        verdict_row.pack(fill="x", padx=12, pady=(0, 8))
+        verdict_row.grid(row=3, column=0, sticky="ew", padx=12, pady=(0, 4))
+        verdict_row.grid_columnconfigure((0, 1), weight=1)
         self.correct_btn = ctk.CTkButton(
             verdict_row,
             text="Classified correctly",
             fg_color=C["success"],
             hover_color="#68b888",
             text_color="#0c0c0e",
-            width=150,
             command=lambda: self._emit_verdict("correct"),
             state="disabled",
+            height=32,
         )
-        self.correct_btn.pack(side="left")
+        self.correct_btn.grid(row=0, column=0, sticky="ew", padx=(0, 4))
         self.incorrect_btn = ctk.CTkButton(
             verdict_row,
             text="Classified incorrectly",
             fg_color=C["danger"],
             hover_color="#c96a6a",
             text_color="#0c0c0e",
-            width=160,
             command=lambda: self._emit_verdict("incorrect"),
             state="disabled",
+            height=32,
         )
-        self.incorrect_btn.pack(side="left", padx=(8, 0))
+        self.incorrect_btn.grid(row=0, column=1, sticky="ew", padx=(4, 0))
+
         self.verdict_status = ctk.CTkLabel(
             self.frame, text="", font=FONT_SM, text_color=C["muted"], anchor="w"
         )
-        self.verdict_status.pack(fill="x", padx=12, pady=(0, 4))
+        self.verdict_status.grid(row=4, column=0, sticky="ew", padx=12, pady=(0, 4))
 
         actual_row = ctk.CTkFrame(self.frame, fg_color="transparent")
-        actual_row.pack(fill="x", padx=12, pady=(0, 6))
+        actual_row.grid(row=5, column=0, sticky="ew", padx=12, pady=(0, 6))
+        actual_row.grid_columnconfigure(1, weight=1)
         ctk.CTkLabel(
             actual_row, text="Actual race", font=FONT_SM, text_color=C["muted"]
-        ).pack(side="left")
+        ).grid(row=0, column=0, sticky="w")
         self.actual_race = ctk.CTkComboBox(
             actual_row,
             values=list(ACTUAL_RACE_OPTIONS),
-            width=160,
             command=self._emit_actual_race,
             state="disabled",
         )
         self.actual_race.set("Unknown")
-        self.actual_race.pack(side="left", padx=(8, 0))
+        self.actual_race.grid(row=0, column=1, sticky="ew", padx=(8, 0))
 
         self.details = ctk.CTkTextbox(
             self.frame,
@@ -189,8 +194,9 @@ class RecordSidebar:
             font=FONT_SM,
             wrap="word",
             activate_scrollbars=True,
+            height=220,
         )
-        self.details.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+        self.details.grid(row=6, column=0, sticky="nsew", padx=12, pady=(0, 12))
         self.details.insert("end", "Select a row to preview mugshot and booking fields.")
         self.details.configure(state="disabled")
 

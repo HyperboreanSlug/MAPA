@@ -190,7 +190,7 @@ class RecentlyBookedTabMixin:
             )
         )
         pane.add(left, minsize=360, stretch="always")
-        pane.add(sidebar.frame, minsize=280, stretch="never")
+        pane.add(sidebar.frame, minsize=360, stretch="always")
         setattr(self, records_attr, [])
         setattr(self, tree_attr, tree)
         setattr(self, sidebar_attr, sidebar)
@@ -580,7 +580,7 @@ class RecentlyBookedTabMixin:
         )
         self.rb_mc_sidebar.bind_actual_race(self._rb_mc_set_actual_race)
         pane.add(left, minsize=360, stretch="always")
-        pane.add(self.rb_mc_sidebar.frame, minsize=280, stretch="never")
+        pane.add(self.rb_mc_sidebar.frame, minsize=360, stretch="always")
         self._rb_mc_records: List[Dict[str, Any]] = []
 
         def on_select(_event=None):
