@@ -16,6 +16,22 @@ import requests
 from gui_app.theme import C, FONT_BOLD, FONT_SM
 from scraper.config import USER_AGENT
 
+ACTUAL_RACE_OPTIONS = [
+    "Hispanic",
+    "Indian",
+    "Asian",
+    "African American",
+    "Black",
+    "White",
+    "Arabic",
+    "European",
+    "Jewish",
+    "Portuguese",
+    "Native American",
+    "Other",
+    "Unknown",
+]
+
 _DETAIL_KEYS = (
     ("Name", ("full_name", "name")),
     ("Race", ("race",)),
@@ -151,6 +167,21 @@ class RecordSidebar:
         )
         self.verdict_status.pack(fill="x", padx=12, pady=(0, 4))
 
+        actual_row = ctk.CTkFrame(self.frame, fg_color="transparent")
+        actual_row.pack(fill="x", padx=12, pady=(0, 6))
+        ctk.CTkLabel(
+            actual_row, text="Actual race", font=FONT_SM, text_color=C["muted"]
+        ).pack(side="left")
+        self.actual_race = ctk.CTkComboBox(
+            actual_row,
+            values=list(ACTUAL_RACE_OPTIONS),
+            width=160,
+            command=self._emit_actual_race,
+            state="disabled",
+        )
+        self.actual_race.set("Unknown")
+        self.actual_race.pack(side="left", padx=(8, 0))
+
         self.details = ctk.CTkTextbox(
             self.frame,
             fg_color=C["bg"],
@@ -168,8 +199,10 @@ class RecordSidebar:
         self._after: Optional[Callable[..., Any]] = None
         self._record: Optional[Dict[str, Any]] = None
         self._on_verdict: Optional[Callable[[Dict[str, Any], str], None]] = None
+        self._on_actual_race: Optional[Callable[[Dict[str, Any], str], None]] = None
         self._ui_q: queue.Queue[Callable[[], None]] = queue.Queue()
         self._pumping = False
+        self._syncing_actual = False
 
     def bind_after(self, after_fn: Callable[..., Any]) -> None:
         """Provide the host window's ``after`` for thread-safe UI updates."""
@@ -184,10 +217,24 @@ class RecordSidebar:
         """``callback(record, 'correct'|'incorrect')`` when a review button is pressed."""
         self._on_verdict = callback
 
+    def bind_actual_race(
+        self, callback: Optional[Callable[[Dict[str, Any], str], None]]
+    ) -> None:
+        """``callback(record, actual_race)`` when the Actual race dropdown changes."""
+        self._on_actual_race = callback
+
     def _emit_verdict(self, verdict: str) -> None:
         if not self._record or not self._on_verdict:
             return
         self._on_verdict(dict(self._record), verdict)
+
+    def _emit_actual_race(self, choice: str) -> None:
+        if self._syncing_actual or not self._record or not self._on_actual_race:
+            return
+        actual = (choice or self.actual_race.get() or "").strip() or "Unknown"
+        self._record["likely_ethnicity"] = actual
+        self._on_actual_race(dict(self._record), actual)
+        self._fill_text(self._record)
 
     @staticmethod
     def review_label(record: Optional[Dict[str, Any]]) -> str:
@@ -234,6 +281,7 @@ class RecordSidebar:
         self.open_photo_btn.configure(state="disabled")
         self.correct_btn.configure(state="disabled")
         self.incorrect_btn.configure(state="disabled")
+        self.actual_race.configure(state="disabled")
         self.verdict_status.configure(text="", text_color=C["muted"])
         self.details.configure(state="normal")
         self.details.delete("1.0", "end")
@@ -264,6 +312,26 @@ class RecordSidebar:
             self.verdict_status.configure(text=label, text_color=C["success"])
         else:
             self.verdict_status.configure(text=label or "", text_color=C["muted"])
+        likely = (
+            str(
+                self._record.get("likely_ethnicity")
+                or self._record.get("race")
+                or "Unknown"
+            ).strip()
+            or "Unknown"
+        )
+        opts = list(ACTUAL_RACE_OPTIONS)
+        if likely not in opts:
+            opts = [likely] + opts
+        self._syncing_actual = True
+        try:
+            self.actual_race.configure(
+                values=opts,
+                state="normal" if self._on_actual_race else "disabled",
+            )
+            self.actual_race.set(likely)
+        finally:
+            self._syncing_actual = False
         self._load_photo(self._record, token)
 
     def _open_source(self) -> None:

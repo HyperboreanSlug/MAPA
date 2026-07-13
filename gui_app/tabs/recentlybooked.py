@@ -417,6 +417,7 @@ class RecentlyBookedTabMixin:
                 remove_from_list=True,
             )
         )
+        self.rb_mc_sidebar.bind_actual_race(self._rb_mc_set_actual_race)
         pane.add(left, minsize=360, stretch="always")
         pane.add(self.rb_mc_sidebar.frame, minsize=280, stretch="never")
         self._rb_mc_records: List[Dict[str, Any]] = []
@@ -434,6 +435,45 @@ class RecentlyBookedTabMixin:
                 self.rb_mc_sidebar.show(self._rb_mc_records[idx])
 
         self.rb_mc_tree.bind("<<TreeviewSelect>>", on_select)
+
+    def _rb_mc_set_actual_race(self, record: Dict[str, Any], actual: str) -> None:
+        actual = (actual or "").strip() or "Unknown"
+        record["likely_ethnicity"] = actual
+        rid = record.get("id")
+        source_url = str(record.get("source_url") or "").strip()
+        # Keep list + tree column in sync.
+        for i, existing in enumerate(self._rb_mc_records):
+            same_id = record.get("id") and existing.get("id") == record.get("id")
+            same_url = source_url and existing.get("source_url") == source_url
+            if same_id or same_url or existing is record:
+                existing["likely_ethnicity"] = actual
+                kids = self.rb_mc_tree.get_children()
+                if 0 <= i < len(kids):
+                    vals = list(self.rb_mc_tree.item(kids[i], "values"))
+                    if len(vals) >= 3:
+                        vals[2] = actual
+                        self.rb_mc_tree.item(kids[i], values=vals)
+                break
+        if rid is None and source_url:
+            db = Database(self.db_path)
+            try:
+                row = db._conn.execute(
+                    "SELECT id FROM arrests WHERE source_url = ? LIMIT 1",
+                    (source_url,),
+                ).fetchone()
+                if row:
+                    rid = row["id"] if hasattr(row, "keys") else row[0]
+                    record["id"] = int(rid)
+            finally:
+                db.close()
+        if rid is not None:
+            try:
+                self.db.update_arrest(int(rid), {"likely_ethnicity": actual})
+                self.log(f"RB misclass actual race set: {actual}")
+            except Exception as exc:
+                self.log(f"Could not save actual race: {exc}")
+        else:
+            self.log(f"RB misclass actual race set (not in DB): {actual}")
 
     def _rb_analyze(self):
         self.rb_mc_status.configure(text="Analyzing…")

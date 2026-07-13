@@ -4,9 +4,11 @@ from __future__ import annotations
 import csv
 import threading
 from tkinter import filedialog
+from typing import Any, Dict, List, Optional
 
 import customtkinter as ctk
 
+from gui_app.shared.record_sidebar import ACTUAL_RACE_OPTIONS, merge_ethnicity_review_flags
 from gui_app.theme import C, FONT_SM
 from gui_app.widgets import _enable_tree_column_sort, _stretch_columns, _tree_frame
 from scraper.charge_classifications import category_label, list_category_choices
@@ -48,6 +50,32 @@ class MisclassifyTabMixin:
             text_color="#0c0c0e",
             command=lambda: self._browse_mc_verdict("incorrect"),
         ).pack(side="left", padx=4)
+
+        review = ctk.CTkFrame(tab, fg_color=C["panel"])
+        review.pack(fill="x", padx=8, pady=(0, 8))
+        ctk.CTkLabel(
+            review,
+            text="Likely → Actual race",
+            font=FONT_SM,
+            text_color=C["muted"],
+        ).pack(side="left", padx=(12, 6), pady=8)
+        self.mc_actual_race = ctk.CTkComboBox(
+            review,
+            values=list(ACTUAL_RACE_OPTIONS),
+            width=180,
+            command=self._browse_mc_set_actual_race,
+            state="disabled",
+        )
+        self.mc_actual_race.set("Unknown")
+        self.mc_actual_race.pack(side="left", padx=(0, 8), pady=8)
+        self.mc_likely_lbl = ctk.CTkLabel(
+            review,
+            text="Select a row to set actual race (overrides likely ethnicity).",
+            font=FONT_SM,
+            text_color=C["muted"],
+        )
+        self.mc_likely_lbl.pack(side="left", padx=8, pady=8)
+
         self.mc_status = ctk.CTkLabel(tab, text="Run analysis on a background thread.", text_color=C["muted"])
         self.mc_status.pack(anchor="w", padx=12)
         wrap, self.mc_tree = _tree_frame(tab); wrap.pack(fill="both", expand=True, padx=8, pady=8)
@@ -56,18 +84,78 @@ class MisclassifyTabMixin:
         labels = {"name":"Name","race":"Recorded race","likely":"Likely ethnicity","confidence":"Confidence",
                   "charge_category":"Charge category","state":"State","date":"Date","source":"Source"}
         _enable_tree_column_sort(self.mc_tree, cols, labels); _stretch_columns(self.mc_tree, cols, [220,130,150,90,170,60,110,130])
+        self.mc_tree.bind("<<TreeviewSelect>>", self._browse_mc_on_select)
         self._mc_results = []
 
-    def _browse_mc_verdict(self, verdict: str):
+    def _browse_mc_selected_index(self):
         sel = self.mc_tree.selection()
         if not sel or not self._mc_results:
-            self.mc_status.configure(text="Select a misclass row first.")
-            return
+            return None
         try:
             idx = self.mc_tree.index(sel[0])
         except Exception:
+            return None
+        if 0 <= idx < len(self._mc_results):
+            return idx
+        return None
+
+    def _browse_mc_on_select(self, _event=None):
+        idx = self._browse_mc_selected_index()
+        if idx is None:
+            self.mc_actual_race.configure(state="disabled")
+            self.mc_likely_lbl.configure(
+                text="Select a row to set actual race (overrides likely ethnicity)."
+            )
             return
-        if not (0 <= idx < len(self._mc_results)):
+        mc = self._mc_results[idx]
+        likely = (mc.likely_ethnicity or "Unknown").strip() or "Unknown"
+        opts = list(ACTUAL_RACE_OPTIONS)
+        if likely not in opts:
+            opts = [likely] + opts
+        self.mc_actual_race.configure(values=opts, state="normal")
+        self.mc_actual_race.set(likely)
+        self.mc_likely_lbl.configure(
+            text=f"Likely: {likely}  ·  Recorded: {mc.expected_race or '—'}"
+        )
+
+    def _browse_mc_set_actual_race(self, choice: str):
+        idx = self._browse_mc_selected_index()
+        if idx is None:
+            return
+        actual = (choice or self.mc_actual_race.get() or "").strip() or "Unknown"
+        mc = self._mc_results[idx]
+        if (mc.likely_ethnicity or "").strip() == actual:
+            return
+        mc.likely_ethnicity = actual
+        names = list(mc.matching_names or [])
+        if "manual_override" not in names:
+            names = ["manual_override"] + names
+        mc.matching_names = names
+        rec = mc.record if isinstance(mc.record, dict) else {}
+        rec["likely_ethnicity"] = actual
+        mc.record = rec
+        rid = rec.get("id")
+        if rid is not None:
+            try:
+                self.db.update_arrest(int(rid), {"likely_ethnicity": actual})
+            except Exception as exc:
+                self.mc_status.configure(text=f"Could not save actual race: {exc}")
+                return
+        # Refresh the likely column in the selected tree row.
+        item = self.mc_tree.selection()[0]
+        vals = list(self.mc_tree.item(item, "values"))
+        if len(vals) >= 3:
+            vals[2] = actual
+            self.mc_tree.item(item, values=vals)
+        self.mc_likely_lbl.configure(
+            text=f"Likely: {actual}  ·  Recorded: {mc.expected_race or '—'}  (saved)"
+        )
+        self.log(f"Misclass actual race set: {actual}")
+
+    def _browse_mc_verdict(self, verdict: str):
+        idx = self._browse_mc_selected_index()
+        if idx is None:
+            self.mc_status.configure(text="Select a misclass row first.")
             return
         from gui_app.shared.record_sidebar import merge_ethnicity_review_flags
 
@@ -77,12 +165,17 @@ class MisclassifyTabMixin:
         rec["flags"] = flags_json
         rid = rec.get("id")
         label = "classified correctly" if verdict == "correct" else "classified incorrectly"
+        fields = {"flags": flags_json}
+        # Keep likely ethnicity if reviewer overrode it via Actual race.
+        if rec.get("likely_ethnicity"):
+            fields["likely_ethnicity"] = rec.get("likely_ethnicity")
         if rid is not None:
             try:
-                self.db.update_arrest(int(rid), {"flags": flags_json})
+                self.db.update_arrest(int(rid), fields)
             except Exception as exc:
                 self.mc_status.configure(text=f"Could not save verdict: {exc}")
                 return
+        sel = self.mc_tree.selection()
         self.mc_tree.delete(sel[0])
         self._mc_results.pop(idx)
         kids = self.mc_tree.get_children()
@@ -91,6 +184,10 @@ class MisclassifyTabMixin:
             self.mc_tree.selection_set(kids[next_i])
             self.mc_tree.focus(kids[next_i])
             self.mc_tree.see(kids[next_i])
+            self._browse_mc_on_select()
+        else:
+            self.mc_actual_race.configure(state="disabled")
+            self.mc_likely_lbl.configure(text="No rows left.")
         name = (
             f"{rec.get('first_name') or ''} {rec.get('last_name') or ''}"
         ).strip() or rec.get("full_name") or "—"
