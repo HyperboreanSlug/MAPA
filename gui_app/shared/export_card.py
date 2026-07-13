@@ -115,6 +115,25 @@ def _crime(record: Mapping[str, Any]) -> str:
     return cat.replace("_", " ").title() if cat else "Unknown charge"
 
 
+def _arrest_datetime(record: Mapping[str, Any]) -> str:
+    """Best-effort arrest/booking date (+ time when available)."""
+    date = str(
+        record.get("arrest_date") or record.get("booking_date") or ""
+    ).strip()
+    time = str(record.get("arrest_time") or "").strip()
+    if not date:
+        return "Unknown"
+    # Trim ISO timestamps like "2026-07-12T14:03:00" to date (+ time).
+    if "T" in date:
+        d, _, t = date.partition("T")
+        date = d
+        if not time and t:
+            time = t[:5]
+    if time:
+        return f"{date} {time}".strip()
+    return date
+
+
 def _resolve_photo_path(raw: Any) -> Optional[Path]:
     text = str(raw or "").strip()
     if not text:
@@ -279,8 +298,8 @@ def _draw_seal_watermark(
     *,
     photo_box: Tuple[int, int, int, int],
     text: str = _WATERMARK,
-    seal_opacity: float = 0.02,
-    text_opacity: float = 0.10,
+    seal_opacity: float = 0.03,
+    text_opacity: float = 0.15,
 ) -> None:
     """Center the Department seal on the mugshot with handle text beneath it."""
     overlay = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
@@ -327,9 +346,9 @@ def render_export_card(record: Mapping[str, Any]) -> Image.Image:
     mug = _load_mugshot(record, photo_box).convert("RGBA")
     canvas.paste(mug, (margin, margin), mug if mug.mode == "RGBA" else None)
 
-    # Seal at 2%; mugshot @handle at 10%
+    # Seal at 3%; mugshot @handle at 15%
     _draw_seal_watermark(
-        canvas, photo_box=photo_rect, seal_opacity=0.02, text_opacity=0.10
+        canvas, photo_box=photo_rect, seal_opacity=0.03, text_opacity=0.15
     )
 
     # Accent bar under photo
@@ -344,6 +363,7 @@ def render_export_card(record: Mapping[str, Any]) -> Image.Image:
     race = format_race_label(str(record.get("race") or "").strip()) or "Unknown"
     location = _location(record)
     crime = _crime(record)
+    arrest_dt = _arrest_datetime(record)
 
     name_font = _load_font(54, bold=True)
     label_font = _load_font(26)
@@ -400,7 +420,34 @@ def render_export_card(record: Mapping[str, Any]) -> Image.Image:
             top += 42
         return top + 10
 
-    y = section("Arrest location", location, y)
+    def two_col_section(
+        left_label: str,
+        left_value: str,
+        right_label: str,
+        right_value: str,
+        top: int,
+    ) -> int:
+        gutter = 32
+        col_w = (max_text_w - gutter) // 2
+        right_x = margin + col_w + gutter
+        draw.text((margin, top), left_label.upper(), font=label_font, fill=_MUTED)
+        draw.text((right_x, top), right_label.upper(), font=label_font, fill=_MUTED)
+        head = top + 34
+        left_lines = _wrap_text(draw, left_value, value_font, col_w)[:3]
+        right_lines = _wrap_text(draw, right_value, value_font, col_w)[:3]
+        ly = head
+        for line in left_lines:
+            draw.text((margin, ly), line, font=value_font, fill=_TEXT)
+            ly += 42
+        ry = head
+        for line in right_lines:
+            draw.text((right_x, ry), line, font=value_font, fill=_TEXT)
+            ry += 42
+        return max(ly, ry) + 10
+
+    y = two_col_section(
+        "Arrest location", location, "Arrest date", arrest_dt, y
+    )
     y = section("Crime", crime, y)
 
     # Bottom-right handle at 100% opacity
