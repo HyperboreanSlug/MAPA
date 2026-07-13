@@ -291,14 +291,47 @@ class RecentlyBookedTabMixin:
         ctk.CTkButton(bar, text="Analyze", command=self._rb_analyze).pack(
             side="left", padx=5
         )
-        wrap, self.rb_mc_tree = _tree_frame(tab)
-        wrap.pack(fill="both", expand=True, padx=8, pady=8)
+        self.rb_mc_status = ctk.CTkLabel(
+            bar,
+            text="Select a flag for photo/details and Open source URL.",
+            font=FONT_SM,
+            text_color=C["muted"],
+        )
+        self.rb_mc_status.pack(side="left", padx=12)
+
+        pane = _hpaned(tab)
+        pane.pack(fill="both", expand=True, padx=8, pady=8)
+        left = ctk.CTkFrame(pane, fg_color="transparent")
+        wrap, self.rb_mc_tree = _tree_frame(left)
+        wrap.pack(fill="both", expand=True)
         cols = ["name", "race", "likely", "conf", "charge", "state"]
         self.rb_mc_tree.configure(columns=cols)
         _enable_tree_column_sort(self.rb_mc_tree, cols)
-        _stretch_columns(self.rb_mc_tree, cols)
+        _stretch_columns(self.rb_mc_tree, cols, [180, 90, 100, 60, 180, 50])
+        self.rb_mc_sidebar = RecordSidebar(pane)
+        self.rb_mc_sidebar.bind_after(self.after)
+        pane.add(left, minsize=360, stretch="always")
+        pane.add(self.rb_mc_sidebar.frame, minsize=280, stretch="never")
+        self._rb_mc_records: List[Dict[str, Any]] = []
+
+        def on_select(_event=None):
+            sel = self.rb_mc_tree.selection()
+            if not sel:
+                self.rb_mc_sidebar.clear()
+                return
+            try:
+                idx = self.rb_mc_tree.index(sel[0])
+            except Exception:
+                return
+            if 0 <= idx < len(self._rb_mc_records):
+                self.rb_mc_sidebar.show(self._rb_mc_records[idx])
+
+        self.rb_mc_tree.bind("<<TreeviewSelect>>", on_select)
 
     def _rb_analyze(self):
+        self.rb_mc_status.configure(text="Analyzing…")
+        self.rb_mc_sidebar.clear("Analyzing…")
+
         def work():
             s = ArrestSearcher(self.db_path)
             try:
@@ -311,8 +344,16 @@ class RecentlyBookedTabMixin:
 
             def fill():
                 self.rb_mc_tree.delete(*self.rb_mc_tree.get_children())
+                self._rb_mc_records = []
                 for mc in rows:
-                    rec = mc.record or {}
+                    rec = dict(mc.record or {})
+                    # Keep analysis fields available in the sidebar text.
+                    rec.setdefault("race", mc.expected_race)
+                    if mc.likely_ethnicity:
+                        rec["likely_ethnicity"] = mc.likely_ethnicity
+                    if mc.confidence is not None:
+                        rec["confidence"] = mc.confidence
+                    self._rb_mc_records.append(rec)
                     name = (
                         f"{rec.get('first_name') or ''} {rec.get('last_name') or ''}"
                     ).strip() or rec.get("full_name") or "—"
@@ -328,9 +369,20 @@ class RecentlyBookedTabMixin:
                             rec.get("state") or "",
                         ),
                     )
-                self.log(
-                    f"RecentlyBooked surname analysis: {len(rows)} flags from {base} names."
+                msg = (
+                    f"RecentlyBooked surname analysis: "
+                    f"{len(rows)} flags from {base} names."
                 )
+                self.log(msg)
+                self.rb_mc_status.configure(text=msg)
+                if self._rb_mc_records:
+                    first = self.rb_mc_tree.get_children()
+                    if first:
+                        self.rb_mc_tree.selection_set(first[0])
+                        self.rb_mc_tree.focus(first[0])
+                        self.rb_mc_sidebar.show(self._rb_mc_records[0])
+                else:
+                    self.rb_mc_sidebar.clear("No flags.")
 
             self.after(0, fill)
 
