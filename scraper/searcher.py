@@ -413,8 +413,10 @@ class ArrestSearcher:
             charge_category=charge_f,
             source_system=src_f,
         ):
-            # Human review: Classified correctly → leave the misclass queue.
-            if ethnicity_review_verdict(record) == "correct":
+            # Human review: any recorded verdict (correct OR incorrect) means
+            # the record has been confirmed → leave the misclass queue. The
+            # list only surfaces records whose status is not yet confirmed.
+            if ethnicity_review_verdict(record):
                 continue
             if charge_f:
                 cat = (record.get("charge_category") or "").strip().lower()
