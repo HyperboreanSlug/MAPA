@@ -34,6 +34,7 @@ ACTUAL_RACE_OPTIONS = [
 
 _DETAIL_KEYS = (
     ("Name", ("full_name", "name")),
+    ("Charges", ("charge_description",)),
     ("Race", ("race",)),
     ("Likely ethnicity", ("likely_ethnicity",)),
     ("Confidence", ("confidence", "name_confidence")),
@@ -45,7 +46,6 @@ _DETAIL_KEYS = (
     ("Booking ID", ("booking_id",)),
     ("Facility", ("facility",)),
     ("Agency", ("agency",)),
-    ("Charges", ("charge_description",)),
     ("Height", ("height",)),
     ("Weight", ("weight",)),
     ("Hair", ("hair",)),
