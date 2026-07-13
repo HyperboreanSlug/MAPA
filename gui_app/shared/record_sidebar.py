@@ -47,6 +47,26 @@ def _first(record: Dict[str, Any], keys: tuple[str, ...]) -> str:
     return "—"
 
 
+def merge_ethnicity_review_flags(raw_flags: Any, verdict: str) -> str:
+    """Merge ``ethnicity_review`` into the arrests.flags JSON blob."""
+    import json
+    from datetime import datetime, timezone
+
+    if isinstance(raw_flags, dict):
+        flags: Dict[str, Any] = dict(raw_flags)
+    elif isinstance(raw_flags, str) and raw_flags.strip():
+        try:
+            parsed = json.loads(raw_flags)
+            flags = dict(parsed) if isinstance(parsed, dict) else {"notes": raw_flags}
+        except Exception:
+            flags = {"notes": raw_flags}
+    else:
+        flags = {}
+    flags["ethnicity_review"] = verdict
+    flags["ethnicity_reviewed_at"] = datetime.now(timezone.utc).isoformat()
+    return json.dumps(flags, ensure_ascii=False, sort_keys=True)
+
+
 def _resolve_photo_path(raw: Any) -> Optional[Path]:
     text = str(raw or "").strip()
     if not text:
@@ -84,7 +104,7 @@ class RecordSidebar:
         self.photo.pack(padx=12, pady=8)
 
         btn_row = ctk.CTkFrame(self.frame, fg_color="transparent")
-        btn_row.pack(fill="x", padx=12, pady=(0, 8))
+        btn_row.pack(fill="x", padx=12, pady=(0, 4))
         self.open_btn = ctk.CTkButton(
             btn_row,
             text="Open source URL",
@@ -102,6 +122,35 @@ class RecordSidebar:
         )
         self.open_photo_btn.pack(side="left", padx=(8, 0))
 
+        verdict_row = ctk.CTkFrame(self.frame, fg_color="transparent")
+        verdict_row.pack(fill="x", padx=12, pady=(0, 8))
+        self.correct_btn = ctk.CTkButton(
+            verdict_row,
+            text="Classified correctly",
+            fg_color=C["success"],
+            hover_color="#68b888",
+            text_color="#0c0c0e",
+            width=150,
+            command=lambda: self._emit_verdict("correct"),
+            state="disabled",
+        )
+        self.correct_btn.pack(side="left")
+        self.incorrect_btn = ctk.CTkButton(
+            verdict_row,
+            text="Classified incorrectly",
+            fg_color=C["danger"],
+            hover_color="#c96a6a",
+            text_color="#0c0c0e",
+            width=160,
+            command=lambda: self._emit_verdict("incorrect"),
+            state="disabled",
+        )
+        self.incorrect_btn.pack(side="left", padx=(8, 0))
+        self.verdict_status = ctk.CTkLabel(
+            self.frame, text="", font=FONT_SM, text_color=C["muted"], anchor="w"
+        )
+        self.verdict_status.pack(fill="x", padx=12, pady=(0, 4))
+
         self.details = ctk.CTkTextbox(
             self.frame,
             fg_color=C["bg"],
@@ -118,6 +167,7 @@ class RecordSidebar:
         self._load_token = 0
         self._after: Optional[Callable[..., Any]] = None
         self._record: Optional[Dict[str, Any]] = None
+        self._on_verdict: Optional[Callable[[Dict[str, Any], str], None]] = None
         self._ui_q: queue.Queue[Callable[[], None]] = queue.Queue()
         self._pumping = False
 
@@ -127,6 +177,36 @@ class RecordSidebar:
         if not self._pumping:
             self._pumping = True
             self._pump_ui()
+
+    def bind_verdict(
+        self, callback: Optional[Callable[[Dict[str, Any], str], None]]
+    ) -> None:
+        """``callback(record, 'correct'|'incorrect')`` when a review button is pressed."""
+        self._on_verdict = callback
+
+    def _emit_verdict(self, verdict: str) -> None:
+        if not self._record or not self._on_verdict:
+            return
+        self._on_verdict(dict(self._record), verdict)
+
+    @staticmethod
+    def review_label(record: Optional[Dict[str, Any]]) -> str:
+        flags = (record or {}).get("flags")
+        if isinstance(flags, str):
+            try:
+                import json
+
+                flags = json.loads(flags)
+            except Exception:
+                flags = {}
+        if not isinstance(flags, dict):
+            return ""
+        review = str(flags.get("ethnicity_review") or "").strip().lower()
+        if review == "correct":
+            return "Marked: classified correctly"
+        if review == "incorrect":
+            return "Marked: classified incorrectly"
+        return ""
 
     def _pump_ui(self) -> None:
         """Drain worker callbacks on the Tk main thread."""
@@ -152,6 +232,9 @@ class RecordSidebar:
         self.photo.configure(image="", text=message)
         self.open_btn.configure(state="disabled")
         self.open_photo_btn.configure(state="disabled")
+        self.correct_btn.configure(state="disabled")
+        self.incorrect_btn.configure(state="disabled")
+        self.verdict_status.configure(text="", text_color=C["muted"])
         self.details.configure(state="normal")
         self.details.delete("1.0", "end")
         self.details.insert("end", message)
@@ -171,6 +254,16 @@ class RecordSidebar:
         self.open_photo_btn.configure(
             state="normal" if photo_path and photo_path.is_file() else "disabled"
         )
+        enabled = "normal" if self._on_verdict else "disabled"
+        self.correct_btn.configure(state=enabled)
+        self.incorrect_btn.configure(state=enabled)
+        label = self.review_label(self._record)
+        if "incorrect" in label:
+            self.verdict_status.configure(text=label, text_color=C["danger"])
+        elif "correct" in label:
+            self.verdict_status.configure(text=label, text_color=C["success"])
+        else:
+            self.verdict_status.configure(text=label or "", text_color=C["muted"])
         self._load_photo(self._record, token)
 
     def _open_source(self) -> None:

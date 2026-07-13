@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 import customtkinter as ctk
 
 from gui_app.lazy_tabs import LazyTabHost
-from gui_app.shared.record_sidebar import RecordSidebar
+from gui_app.shared.record_sidebar import RecordSidebar, merge_ethnicity_review_flags
 from gui_app.theme import C, FONT_SM
 from gui_app.widgets import (
     _enable_tree_column_sort,
@@ -78,8 +78,95 @@ class RecentlyBookedTabMixin:
             self._rb_hint(record, eth),
         )
 
+    def _rb_persist_verdict(self, record: Dict[str, Any], verdict: str) -> bool:
+        """Write ethnicity_review into flags; resolve id via source_url when needed."""
+        flags_json = merge_ethnicity_review_flags(record.get("flags"), verdict)
+        record["flags"] = flags_json
+        rid = record.get("id")
+        source_url = str(record.get("source_url") or "").strip()
+        db = Database(self.db_path)
+        try:
+            if rid is None and source_url:
+                row = db._conn.execute(
+                    "SELECT id, flags FROM arrests WHERE source_url = ? LIMIT 1",
+                    (source_url,),
+                ).fetchone()
+                if row:
+                    rid = row["id"] if hasattr(row, "keys") else row[0]
+                    existing = row["flags"] if hasattr(row, "keys") else row[1]
+                    flags_json = merge_ethnicity_review_flags(existing, verdict)
+                    record["flags"] = flags_json
+            if rid is None:
+                return False
+            record["id"] = int(rid)
+            return bool(db.update_arrest(int(rid), {"flags": flags_json}))
+        finally:
+            db.close()
+
+    def _rb_apply_verdict(
+        self,
+        record: Dict[str, Any],
+        verdict: str,
+        *,
+        tree,
+        records: List[Dict[str, Any]],
+        sidebar: RecordSidebar,
+        remove_from_list: bool = False,
+    ) -> None:
+        label = (
+            "classified correctly"
+            if verdict == "correct"
+            else "classified incorrectly"
+        )
+        saved = self._rb_persist_verdict(record, verdict)
+        # Keep in-memory copy in sync for the current selection index.
+        for i, existing in enumerate(records):
+            same_id = record.get("id") and existing.get("id") == record.get("id")
+            same_url = (
+                record.get("source_url")
+                and existing.get("source_url") == record.get("source_url")
+            )
+            if same_id or same_url or existing is record:
+                existing["flags"] = record.get("flags")
+                if record.get("id") is not None:
+                    existing["id"] = record["id"]
+                idx = i
+                break
+        else:
+            idx = None
+
+        if saved:
+            self.log(f"Marked {self._rb_name(record)} as {label}.")
+        else:
+            self.log(
+                f"Marked {self._rb_name(record)} as {label} "
+                "(not in DB yet — import to persist)."
+            )
+
+        if remove_from_list and idx is not None:
+            children = tree.get_children()
+            if 0 <= idx < len(children):
+                tree.delete(children[idx])
+            records.pop(idx)
+            if records:
+                next_i = min(idx, len(records) - 1)
+                kids = tree.get_children()
+                if kids:
+                    tree.selection_set(kids[next_i])
+                    tree.focus(kids[next_i])
+                    tree.see(kids[next_i])
+                    sidebar.show(records[next_i])
+                else:
+                    sidebar.clear()
+            else:
+                sidebar.clear("No more rows.")
+            return
+
+        sidebar.show(record)
+
     def _rb_split(
-        self, parent, *, records_attr: str, tree_attr: str, sidebar_attr: str
+        self, parent, *, records_attr: str, tree_attr: str, sidebar_attr: str,
+        remove_on_verdict: bool = False,
     ):
         """Tree on the left, photo/details sidebar on the right."""
         pane = _hpaned(parent)
@@ -92,6 +179,16 @@ class RecentlyBookedTabMixin:
         _stretch_columns(tree, _RB_COLS, _RB_WIDTHS)
         sidebar = RecordSidebar(pane)
         sidebar.bind_after(self.after)
+        sidebar.bind_verdict(
+            lambda rec, verdict: self._rb_apply_verdict(
+                rec,
+                verdict,
+                tree=tree,
+                records=getattr(self, records_attr),
+                sidebar=sidebar,
+                remove_from_list=remove_on_verdict,
+            )
+        )
         pane.add(left, minsize=360, stretch="always")
         pane.add(sidebar.frame, minsize=280, stretch="never")
         setattr(self, records_attr, [])
@@ -310,6 +407,16 @@ class RecentlyBookedTabMixin:
         _stretch_columns(self.rb_mc_tree, cols, [180, 90, 100, 60, 180, 50])
         self.rb_mc_sidebar = RecordSidebar(pane)
         self.rb_mc_sidebar.bind_after(self.after)
+        self.rb_mc_sidebar.bind_verdict(
+            lambda rec, verdict: self._rb_apply_verdict(
+                rec,
+                verdict,
+                tree=self.rb_mc_tree,
+                records=self._rb_mc_records,
+                sidebar=self.rb_mc_sidebar,
+                remove_from_list=True,
+            )
+        )
         pane.add(left, minsize=360, stretch="always")
         pane.add(self.rb_mc_sidebar.frame, minsize=280, stretch="never")
         self._rb_mc_records: List[Dict[str, Any]] = []
