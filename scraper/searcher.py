@@ -134,11 +134,16 @@ def _canonical_race_key(recorded_race: str) -> str:
         or "ALASKA NATIVE" in r_spaced
     ):
         return "NATIVE AMERICAN"
-    if r_spaced.startswith("BLACK") or "AFRICAN AMERICAN" in r_spaced:
+    words = r_spaced.split()
+    if "BLACK" in words or "AFRICAN AMERICAN" in r_spaced:
         return "BLACK"
     if r_spaced.startswith("WHITE") or r_spaced.endswith(" WHITE"):
         return "WHITE"
-    if r_spaced in ("OTHER", "OTHER RACE", "OTHER RACES", "OT"):
+    if (
+        "OTHER" in words
+        or r_spaced in ("OT", "MULTI RACIAL", "MULTIRACIAL")
+        or ("MULTI" in words and "RACIAL" in words)
+    ):
         return "OTHER"
     if "ASIAN" in r_spaced and "PACIFIC" in r_spaced:
         return "ASIAN / PACIFIC ISLANDER"
