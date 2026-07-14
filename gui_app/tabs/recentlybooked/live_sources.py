@@ -89,7 +89,7 @@ class RbLiveSourcesMixin:
         self._rb_live_apply_health_to_checks()
 
     def _rb_live_apply_health_to_checks(self) -> None:
-        """Uncheck offline sources; ensure at least one online remains selected."""
+        """On probe results: check all online sources, uncheck offline."""
         health = getattr(self, "_source_health", None) or {}
         vars_map = getattr(self, "_rb_live_source_vars", None) or {}
         if not health or not vars_map:
@@ -99,14 +99,26 @@ class RbLiveSourcesMixin:
             return
         if not any(str(r.get("status")) in ("online", "offline") for r in health.values()):
             return
+        # First successful probe after startup: sync checks to live status.
+        # Later probes (Recheck) only uncheck newly offline hosts so the
+        # user can still deselect online sources mid-session.
+        first_sync = not getattr(self, "_rb_live_health_synced", False)
         changed = False
         for sid, row in health.items():
-            if str(row.get("status")) != "offline":
-                continue
             var = vars_map.get(sid)
-            if var is not None and var.get():
-                var.set(False)
-                changed = True
+            if var is None:
+                continue
+            st = str(row.get("status") or "")
+            if st == "online":
+                if first_sync and not var.get():
+                    var.set(True)
+                    changed = True
+            elif st == "offline":
+                if var.get():
+                    var.set(False)
+                    changed = True
+        if first_sync:
+            self._rb_live_health_synced = True
         if not self._rb_live_selected_sources():
             for sid, row in health.items():
                 if str(row.get("status")) == "online" and sid in vars_map:

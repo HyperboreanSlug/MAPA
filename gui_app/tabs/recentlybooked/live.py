@@ -35,6 +35,7 @@ class RbLiveMixin:
         self._rb_live_sources_panel = None
         self._rb_live_sources_open = False
         self._rb_live_source_status_labels = {}
+        self._rb_live_health_synced = False
         if not hasattr(self, "_source_health") or self._source_health is None:
             self._source_health = {}
         self.rb_live_sources_btn = ctk.CTkButton(
@@ -52,7 +53,7 @@ class RbLiveMixin:
             command=self._rb_live_on_auto_toggle,
         )
         self.rb_live_auto.pack(side="left", padx=8)
-        self.rb_live_hide_no_race_var = ctk.BooleanVar(value=False)
+        self.rb_live_hide_no_race_var = ctk.BooleanVar(value=True)
         self.rb_live_hide_no_race = ctk.CTkCheckBox(
             bar,
             text="Hide no race",
@@ -60,6 +61,7 @@ class RbLiveMixin:
             command=self._rb_live_on_race_filter_toggle,
         )
         self.rb_live_hide_no_race.pack(side="left", padx=5)
+        self.rb_live_hide_no_race.select()
         self.rb_live_hide_no_photo_var = ctk.BooleanVar(value=True)
         self.rb_live_hide_no_photo = ctk.CTkCheckBox(
             bar,

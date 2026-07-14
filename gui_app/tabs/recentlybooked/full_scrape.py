@@ -58,7 +58,7 @@ class RbFullScrapeMixin:
         ctk.CTkButton(
             bar, text="Cancel", command=lambda: setattr(self, "rb_cancel", True)
         ).pack(side="left", padx=5)
-        self.rb_full_hide_no_race_var = ctk.BooleanVar(value=False)
+        self.rb_full_hide_no_race_var = ctk.BooleanVar(value=True)
         self.rb_full_hide_no_race = ctk.CTkCheckBox(
             bar,
             text="Hide no race",
@@ -66,6 +66,7 @@ class RbFullScrapeMixin:
             command=self._rb_full_on_race_filter_toggle,
         )
         self.rb_full_hide_no_race.pack(side="left", padx=5)
+        self.rb_full_hide_no_race.select()
         self.rb_full_hide_no_photo_var = ctk.BooleanVar(value=True)
         self.rb_full_hide_no_photo = ctk.CTkCheckBox(
             bar,
