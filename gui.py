@@ -145,7 +145,10 @@ def main() -> None:
     app = ArrestArchiverApp()
     sett = getattr(app, "app_settings", None) or {}
     _start_deepface_setup_background(sett if isinstance(sett, dict) else {})
-    app.mainloop()
+    # Never leave python(w) alive after the window closes (TF non-daemon threads)
+    from gui_app.process_lifecycle import run_app_mainloop
+
+    run_app_mainloop(app)
 
 
 if __name__ == "__main__":

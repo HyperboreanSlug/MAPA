@@ -51,6 +51,7 @@ class ArrestArchiverApp(
         self.db = Database(self.db_path)
         self._init_channel_log()
         self.is_running = False
+        self._closing = False
         self._source_health: Dict[str, Dict[str, Any]] = {}
         self._source_health_busy = False
         self.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -111,6 +112,27 @@ class ArrestArchiverApp(
         self._refresh_db_status()
 
     def _on_close(self) -> None:
+        """Cancel workers, backup if configured, then hard process exit."""
+        if getattr(self, "_closing", False) and getattr(self, "_shutdown_armed", False):
+            return
+        if getattr(self, "is_running", False):
+            try:
+                from tkinter import messagebox
+
+                if not messagebox.askyesno(
+                    "Job still running",
+                    "A scrape or scan job is still running.\n\n"
+                    "Close anyway? In-flight work may be incomplete.",
+                ):
+                    return
+            except Exception:
+                pass
+        try:
+            from gui_app.process_lifecycle import mark_closing
+
+            mark_closing(self)
+        except Exception:
+            self._closing = True
         try:
             if self.app_settings.get("backup_on_close"):
                 backup_database_file(
@@ -121,5 +143,18 @@ class ArrestArchiverApp(
                 )
             save_settings(self.app_settings)
             self.db.close()
-        finally:
-            self.destroy()
+        except Exception:
+            pass
+        try:
+            from gui_app.process_lifecycle import shutdown_app
+
+            shutdown_app(self)
+        except Exception:
+            try:
+                self.quit()
+            except Exception:
+                pass
+            try:
+                self.destroy()
+            except Exception:
+                pass

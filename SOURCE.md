@@ -68,6 +68,7 @@ tests/                         # Smoke suite split under tests/smoke/
 |--------|----------|
 | `gui_app/__init__.py` | Package marker |
 | `gui_app/shell.py` | Main window, tab host registration, DB/settings lifecycle, log drain |
+| `gui_app/process_lifecycle.py` | Hard shutdown: cancel flags, quit Tk, force-exit leftover threads |
 | `gui_app/theme.py` | Colors, fonts, Treeview dark styling |
 | `gui_app/lazy_tabs.py` | Build tab body only on first selection |
 | `gui_app/paths.py` | Project root path |
