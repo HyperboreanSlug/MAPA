@@ -13,6 +13,7 @@ When multiple sources cover the same county/person, the orchestrator:
 """
 from __future__ import annotations
 
+from .health import probe_all_sources, probe_source, status_label
 from .identity import IdentityIndex, identity_keys_for_record
 from .orchestrator import MultiSourceOrchestrator
 from .partition import partition_work_units
@@ -40,4 +41,7 @@ __all__ = [
     "partition_work_units",
     "MultiSourceResult",
     "MultiSourceOrchestrator",
+    "probe_all_sources",
+    "probe_source",
+    "status_label",
 ]

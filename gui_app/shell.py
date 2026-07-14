@@ -3,10 +3,12 @@ from __future__ import annotations
 
 import queue
 from pathlib import Path
+from typing import Any, Dict
 
 import customtkinter as ctk
 
 from gui_app.lazy_tabs import LazyTabHost
+from gui_app.shell_health import SourceHealthMixin
 from gui_app.theme import C, FONT_SM, FONT_TITLE, style_treeview
 from gui_app.tabs.browse import BrowseTabMixin
 from gui_app.tabs.browse.deepface_reports import DeepfaceReportsTabMixin
@@ -23,6 +25,7 @@ from scraper.database import Database, backup_database_file
 
 
 class ArrestArchiverApp(
+    SourceHealthMixin,
     BrowseTabMixin,
     MisclassifyTabMixin,
     StatisticsTabMixin,
@@ -47,6 +50,8 @@ class ArrestArchiverApp(
         self.db = Database(self.db_path)
         self.log_queue: queue.Queue[str] = queue.Queue()
         self.is_running = False
+        self._source_health: Dict[str, Dict[str, Any]] = {}
+        self._source_health_busy = False
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         style_treeview(self)
 
@@ -86,6 +91,8 @@ class ArrestArchiverApp(
         )
         self.activity_log.pack(fill="x", padx=10, pady=(0, 10))
         self.after(250, self._drain_log)
+        # Ping mugshot hosts in the background so Live Feed can show real status.
+        self.after(100, lambda: self._start_source_health_probe(force=False))
 
     def log(self, message: str) -> None:
         self.log_queue.put(str(message))

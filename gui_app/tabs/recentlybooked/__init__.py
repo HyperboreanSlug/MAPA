@@ -17,6 +17,7 @@ from .live_fetch import RbLiveFetchMixin
 from .live_filters import RbLiveFiltersMixin
 from .live_refresh import RbLiveRefreshMixin
 from .live_sources import RbLiveSourcesMixin
+from .live_sources_panel import RbLiveSourcesPanelMixin
 from .misclassify import RbMisclassifyMixin
 from .misclassify_analyze import RbMisclassifyAnalyzeMixin
 from .verdicts import RbVerdictsMixin
@@ -26,6 +27,7 @@ class RecentlyBookedTabMixin(
     RbLiveRefreshMixin,
     RbLiveFetchMixin,
     RbLiveFiltersMixin,
+    RbLiveSourcesPanelMixin,
     RbLiveSourcesMixin,
     RbLiveMixin,
     RbMisclassifyAnalyzeMixin,

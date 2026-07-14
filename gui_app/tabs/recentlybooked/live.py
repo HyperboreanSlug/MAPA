@@ -16,23 +16,31 @@ from .constants import (
 
 class RbLiveMixin:
     def _build_rb_live(self, tab):
-        bar = ctk.CTkFrame(tab, fg_color=C["panel"])
+        # Host frame so the sources panel can expand under the toolbar
+        # without a Toplevel (avoids multi-click / focus-out issues).
+        self._rb_live_sources_host = ctk.CTkFrame(tab, fg_color="transparent")
+        self._rb_live_sources_host.pack(fill="x")
+
+        bar = ctk.CTkFrame(self._rb_live_sources_host, fg_color=C["panel"])
         bar.pack(fill="x", padx=8, pady=8)
         ctk.CTkButton(bar, text="Refresh", command=lambda: self._rb_refresh(False)).pack(
             side="left", padx=5, pady=8
         )
-        # Multi-select sources (dropdown with checkboxes).
-        # RecentlyBooked on by default; BN off while SSL is broken.
+        # Multi-select sources panel (toggle; stays open for several checks).
         self._rb_live_source_vars: Dict[str, ctk.BooleanVar] = {}
         for sid, _label in _RB_SOURCE_OPTIONS:
             self._rb_live_source_vars[sid] = ctk.BooleanVar(
                 value=(sid in _RB_LIVE_DEFAULT_SOURCES)
             )
-        self._rb_live_sources_popup: Optional[ctk.CTkToplevel] = None
+        self._rb_live_sources_panel = None
+        self._rb_live_sources_open = False
+        self._rb_live_source_status_labels = {}
+        if not hasattr(self, "_source_health") or self._source_health is None:
+            self._source_health = {}
         self.rb_live_sources_btn = ctk.CTkButton(
             bar,
             text=self._rb_live_sources_button_text(),
-            width=150,
+            width=170,
             command=self._rb_live_toggle_sources_menu,
         )
         self.rb_live_sources_btn.pack(side="left", padx=6)
@@ -77,6 +85,8 @@ class RbLiveMixin:
             tree_attr="rb_tree",
             sidebar_attr="rb_live_sidebar",
         )
+        # Refresh status labels if a startup probe already finished.
+        self.after(50, self._rb_live_refresh_source_status_ui)
         self.after(200, lambda: self._rb_refresh(False))
         self.after(_RB_LIVE_POLL_MS, self._rb_live_tick)
 
