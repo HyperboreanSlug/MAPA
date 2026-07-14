@@ -13,10 +13,10 @@ _SEAL_PATH = (
 )
 _CARD_W = 1080
 _CARD_H = 1350
-# Slightly shorter mug so multi-charge summaries fit below.
-_PHOTO_H = 700
+# Default mug height (previous card look). Shrinks only when crime needs room.
+_PHOTO_H = 820
 _PHOTO_H_MIN = 560
-_PHOTO_TOP = 32
+_PHOTO_TOP = 48
 _BG = (12, 12, 14, 255)
 _PANEL = (26, 26, 32, 255)
 _TEXT = (236, 236, 241, 255)
