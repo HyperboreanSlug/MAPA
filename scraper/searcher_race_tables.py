@@ -22,7 +22,7 @@ _ETHNICITY_COMPATIBLE_RACES = {
     },
     "native_american": {
         "NATIVE AMERICAN", "AMERICAN INDIAN",
-        "AMERICAN INDIAN OR ALASKA NATIVE", "ALASKA NATIVE", "I", "NATIVE",
+        "AMERICAN INDIAN OR ALASKA NATIVE", "ALASKA NATIVE", "I", "N", "NATIVE",
     },
     "arabic": {"WHITE", "OTHER", "MIDDLE EASTERN", "ARAB", "W"},
     # Anglo / European surnames are common among Black Americans (not a
@@ -59,6 +59,9 @@ _RACE_ALIASES = {
     "Z": "ASIAN",
     "P": "PACIFIC ISLANDER",
     "I": "NATIVE AMERICAN",
+    # Single-letter "N" is used as Native American in some booking feeds
+    # (distinct from N/A / NA which map to UNKNOWN above).
+    "N": "NATIVE AMERICAN",
     "AMERICAN INDIAN": "NATIVE AMERICAN",
     "AMERICAN INDIAN OR ALASKA": "NATIVE AMERICAN",
     "AMERICAN INDIAN OR ALASKA NATIVE": "NATIVE AMERICAN",
@@ -66,6 +69,8 @@ _RACE_ALIASES = {
     "ALASKA NATIVE": "NATIVE AMERICAN",
     "O": "OTHER",
     "OTHER": "OTHER",
+    # Bare "American" (not American Indian) → Other/Unknown for stated-race filters.
+    "AMERICAN": "OTHER",
     "X": "UNKNOWN",
     "G": "OTHER",
 }

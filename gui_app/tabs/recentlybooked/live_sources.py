@@ -87,6 +87,11 @@ class RbLiveSourcesMixin:
             except Exception:
                 pass
         self._rb_live_apply_health_to_checks()
+        if hasattr(self, "_rb_full_refresh_source_status"):
+            try:
+                self._rb_full_refresh_source_status()
+            except Exception:
+                pass
 
     def _rb_live_apply_health_to_checks(self) -> None:
         """On probe results: check all online sources, uncheck offline."""

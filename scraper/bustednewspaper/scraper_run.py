@@ -48,14 +48,20 @@ class BustedNewspaperScraperRun:
         known = set(skip_existing_urls or ())
         records: List[Dict[str, Any]] = []
         page = 1
+        prev_page_urls: Optional[frozenset] = None
+        visited_pages: Set[str] = set()
         while not max_pages or page <= max_pages:
             if self._cancelled(cancel_check):
                 break
             if row_limit and len(records) >= row_limit:
                 break
+            list_url = county_page_url(state, county, page)
+            if list_url in visited_pages:
+                break
+            visited_pages.add(list_url)
             try:
                 html = self.client.get(
-                    county_page_url(state, county, page),
+                    list_url,
                     referer=f"https://bustednewspaper.com/mugshots/{state}/",
                 )
             except Exception:
@@ -67,6 +73,13 @@ class BustedNewspaperScraperRun:
             )
             if not cards:
                 break
+            page_urls = frozenset(
+                str(c.get("source_url") or "") for c in cards if c.get("source_url")
+            )
+            if prev_page_urls is not None and page_urls == prev_page_urls:
+                break
+            prev_page_urls = page_urls
+            fresh = 0
             for card in cards:
                 if self._cancelled(cancel_check):
                     return records
@@ -76,12 +89,16 @@ class BustedNewspaperScraperRun:
                 if source_url in known:
                     continue
                 known.add(source_url)
+                fresh += 1
                 done = self._enrich_record(dict(card), with_photos=with_photos)
                 records.append(done)
                 if record_cb:
                     record_cb(done, len(records))
                 if progress_cb:
                     progress_cb(len(records), row_limit or None)
+            # Entire listing page already known → stop (avoid re-walking).
+            if fresh == 0:
+                break
             page += 1
         return records
 

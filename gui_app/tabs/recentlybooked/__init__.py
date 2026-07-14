@@ -8,8 +8,10 @@ from gui_app.theme import C
 
 from .common import RbCommonMixin
 from .full_scrape import RbFullScrapeMixin
+from .full_scrape_build import RbFullScrapeBuildMixin
 from .full_scrape_dispatch import RbFullScrapeDispatchMixin
 from .full_scrape_run import RbFullScrapeRunMixin
+from .full_scrape_source import RbFullScrapeSourceMixin
 from .full_scrape_ui import RbFullScrapeUiMixin
 from .full_scrape_worker import RbFullScrapeWorkerMixin
 from .live import RbLiveMixin
@@ -36,6 +38,8 @@ class RecentlyBookedTabMixin(
     RbFullScrapeUiMixin,
     RbFullScrapeDispatchMixin,
     RbFullScrapeRunMixin,
+    RbFullScrapeBuildMixin,
+    RbFullScrapeSourceMixin,
     RbFullScrapeMixin,
     RbVerdictsMixin,
     RbCommonMixin,

@@ -23,9 +23,9 @@ class RbFullScrapeRunMixin:
         except ValueError:
             delay = float(self.app_settings.get("rb_delay") or 1.0)
         try:
-            workers = max(1, min(int(self.rb_threads.get().strip() or 4), 32))
+            workers = max(1, min(int(self.rb_threads.get().strip() or 10), 32))
         except ValueError:
-            workers = int(self.app_settings.get("rb_threads") or 4)
+            workers = int(self.app_settings.get("rb_threads") or 10)
         if source_id == "bustednewspaper":
             workers = 1
             self.log(_BN_UNAVAILABLE_HINT)

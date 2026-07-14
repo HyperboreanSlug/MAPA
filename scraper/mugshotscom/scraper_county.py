@@ -37,6 +37,8 @@ class MugshotsComCountyMixin:
         lock = threading.Lock()
         page = 1
         workers = max(1, min(int(workers or 1), 16))
+        prev_page_urls: Optional[frozenset] = None
+        visited_pages: Set[str] = set()
 
         while not max_pages or page <= max_pages:
             if self._cancelled(cancel_check):
@@ -44,6 +46,9 @@ class MugshotsComCountyMixin:
             if row_limit and len(records) >= row_limit:
                 break
             list_url = county_page_url(state, county, page)
+            if list_url in visited_pages:
+                break
+            visited_pages.add(list_url)
             try:
                 html = self.client.get(
                     list_url,
@@ -59,6 +64,12 @@ class MugshotsComCountyMixin:
                 cards = [{"source_url": u, "source_system": "mugshotscom"} for u in urls]
             if not cards:
                 break
+            page_urls = frozenset(
+                str(c.get("source_url") or "") for c in cards if c.get("source_url")
+            )
+            if prev_page_urls is not None and page_urls == prev_page_urls:
+                break
+            prev_page_urls = page_urls
 
             batch = []
             for card in cards:
@@ -69,9 +80,10 @@ class MugshotsComCountyMixin:
                 card = dict(card)
                 card["referer"] = list_url
                 batch.append(card)
+            # All cards already known (or empty page set) → stop; do not keep
+            # requesting higher page numbers of the same listing.
             if not batch:
-                page += 1
-                continue
+                break
 
             def work(card: Dict[str, Any]) -> Dict[str, Any]:
                 return self._enrich(card, with_photos=with_photos)

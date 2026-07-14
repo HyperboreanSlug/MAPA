@@ -56,12 +56,16 @@ class RecentlyBookedScrapeMixin:
         records: List[Dict[str, Any]] = []
         page = 1
         prev_page_urls: Optional[frozenset] = None
+        visited_pages: Set[str] = set()
         while not max_pages or page <= max_pages:
             if self._cancelled(cancel_check):
                 break
             page_url = f"{BASE_URL}/{state}/{county}"
             if page > 1:
                 page_url += f"?p={page}"
+            if page_url in visited_pages:
+                break
+            visited_pages.add(page_url)
             cards = parse_county_cards(self.client.get(page_url))
             if not cards:
                 break
@@ -79,6 +83,7 @@ class RecentlyBookedScrapeMixin:
                     continue
                 known_urls.add(source_url)
                 fresh.append(card)
+            # No new detail URLs on this listing page → stop pagination.
             if not fresh:
                 break
             if workers == 1:
