@@ -75,7 +75,25 @@ _SUMMARY_RULES_B: List[Tuple[str, List[str]]] = [
     # --- Holds / warrants / court ---
     (
         "HOLD FOR OTHER AGENCY",
-        [r"\bhold\s+for\s+(another|other)\s+agency", r"\bhold\s+for\s+agency", r"\bhold\s+for\s+[a-z].*county", r"\bhold\s+for\s+[a-z]", r"\bout\s+of\s+county\s+hold", r"\bcourtesy\s+hold", r"\bhousing\s+for\b", r"\bhold\s+for\s+usms\b", r"\bhold\s+for\s+transport", r"\btemporary\s+hold\b", r"\b24\s*hour\s+hold", r"\bcourt\s+order\s+hold", r"\bhold\b$", r"^hold\b"],
+        [
+            r"\bhold\s+for\s+(another|other)\s+agency",
+            r"\bhold\s+for\s+agency",
+            r"\bhold\s+for\s+[a-z].*county",
+            r"\bhold\s+for\s+[a-z]",
+            r"\bout\s+of\s+county\s+hold",
+            r"\bout\s+of\s+county\s+warrant",
+            r"\bout\s+of\s+county\s*/",  # OUT OF COUNTY/…
+            r"\bout\s+of\s+county\b",
+            r"\bcourtesy\s+hold",
+            r"\bhousing\s+for\b",
+            r"\bhold\s+for\s+usms\b",
+            r"\bhold\s+for\s+transport",
+            r"\btemporary\s+hold\b",
+            r"\b24\s*hour\s+hold",
+            r"\bcourt\s+order\s+hold",
+            r"\bhold\b$",
+            r"^hold\b",
+        ],
     ),
     (
         "BENCH WARRANT / ALIAS WRIT",

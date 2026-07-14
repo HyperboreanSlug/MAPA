@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 from typing import Any, List, Tuple
 
-_PHRASES: List[Tuple[str, str]] = [  # longest / most specific first
+_PHRASES: List[Tuple[str, str]] = [
     (r"\bASSLT\s+CBI\s+FV\b", "Assault Causes Bodily Injury Family Violence"),
     (r"\bASSLT\s+CBI\b", "Assault Causes Bodily Injury"),
     (r"\bAGG\s+ASSLT\b", "Aggravated Assault"),
@@ -33,7 +33,9 @@ _PHRASES: List[Tuple[str, str]] = [  # longest / most specific first
     (r"\bFAIL(?:URE)?\s+TO\s+ID(?:ENTIFY)?\b", "Failure to Identify"),
     (r"\bFUGITIVE\s+FRM\s+JUSTICE\b", "Fugitive from Justice"),
     (r"\bENGAGING\s+IN\s+ORGANIZED\s+CRIMINAL\s+ACTIVITY\b", "Engaging in Organized Criminal Activity"),
-    (r"\bMTR\s+(?=ENGAGING|EVADING|FAIL|POSS|ASSAULT|THEFT)", ""),
+    (r"(?i)\bMTR\s*[-–—:]\s*", ""),
+    (r"\bMTR\s+(?=ENGAGING|EVADING|FAIL|POSS|ASSAULT|THEFT|SEXUAL)", ""),
+    (r"(?i)\bSEXUAL\s+ASSLT\b", "Sexual Assault"),
     (r"\bOPER(?:ATING)?\s+(?:MTR\s+)?(?:MV|VEH(?:ICLE|ICAL)?)\s+U/?INFL(?:UENCE)?(?:\s+(?:OF\s+)?ALC(?:OHOL)?)?", "Operating Motor Vehicle Under the Influence of Alcohol"),
     (r"\bU/?INFL(?:UENCE)?(?:\s+ALC(?:OHOL)?)?\b", "Under the Influence of Alcohol"),
     (r"\bNO\s+OPERATOR'?S?(?:/MOPED)?\s+LICENSE\b", "No Operator License"),
@@ -130,7 +132,6 @@ _FELONY_PREFIX = re.compile(r"^\s*F\s+(?=[A-Za-z])", re.IGNORECASE)
 _SPLIT = re.compile(r"\s*[;|]\s*")
 _WORD = re.compile(r"[A-Za-z][A-Za-z'/.-]*|\d+(?:\.\d+)?|[^\s]")
 
-
 def _expand_segment(segment: str) -> str:
     s = " ".join((segment or "").replace("\u00a0", " ").split())
     if not s:
@@ -161,7 +162,6 @@ def _expand_segment(segment: str) -> str:
     out = re.sub(r"\b(With)\s+\1\b", r"\1", out, flags=re.IGNORECASE)
     return (class_note + out).strip()
 
-
 def expand_charge_text(text: str) -> str:
     """Expand abbreviations in raw charge text; keep multi-charge separators."""
     from scraper.charge_sanitize import is_non_charge, sanitize_charge_text
@@ -172,7 +172,6 @@ def expand_charge_text(text: str) -> str:
     segs = [p for p in _SPLIT.split(raw) if p and p.strip()] or [raw]
     expanded = [e for e in (_expand_segment(p) for p in segs) if e and not is_non_charge(e)]
     return "; ".join(expanded)
-
 
 def expand_charge(record_or_text: Any) -> str:
     """Full plain-language charge for details and export cards."""

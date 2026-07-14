@@ -194,6 +194,7 @@ tests/                         # Smoke suite split under tests/smoke/
 | `charge_expand.py` | Expand jail abbreviations → full plain-language charges (details/card) |
 | `charge_sanitize.py` | Reject non-charges (state names, bare case numbers); pick code/desc |
 | `charge_sanitize_data.py` | State-name set and jail charge-code labels |
+| `charge_admin.py` | Out-of-county / place-docket admin blobs (not offenses) |
 | `charge_chrome.py` | Strip mugshots.com charges-table UI chrome; extract real offenses |
 | `charge_recover.py` | Recover offense text from raw_json when charge is a stub |
 | `charge_summary.py` | Standardized short labels for tables (expand then match) |

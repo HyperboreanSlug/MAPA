@@ -128,6 +128,18 @@ class ChargeFilterTests(unittest.TestCase):
         fl_card = crime({"charge_description": fl})
         self.assertLess(len(fl_card), len(fl))
         self.assertIn("Resisting", fl_card)
+        # MTR - SEXUAL ASSLT + out-of-county docket noise → Sexual Assault only
+        jr = "MTR - SEXUAL ASSLT; OUT OF COUNTY/JIM WELLS CO/20260031611/F"
+        self.assertEqual(summarize_charge(jr), "SEXUAL ASSAULT")
+        self.assertEqual(crime({"charge_description": jr}), "Sexual Assault")
+        self.assertEqual(
+            summarize_charge("OUT OF COUNTY HOLD"),
+            "—",
+        )
+        self.assertIn(
+            "POSSESSION OF MARIJUANA",
+            summarize_charge("OUT OF COUNTY/POS MARIJ LT 2 OX/LAVACA C"),
+        )
 
     def test_charge_classifications_and_filter(self):
         self.assertEqual(classify_charge("RAPE FIRST DEGREE"), "sex_crimes")

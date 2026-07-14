@@ -129,10 +129,36 @@ _SUMMARY_RULES_A: List[Tuple[str, List[str]]] = [
             r"\bwelfare\s+of\s+a\s+minor",
         ],
     ),
-    # --- Sex crimes ---
+    # --- Sex crimes (specific labels first) ---
+    (
+        "SEXUAL ASSAULT",
+        [
+            r"\bsexual\s+assault\b",
+            r"\bsexual\s+asslt\b",
+            r"\bsex\s+asslt\b",
+            r"\bsex\s+assault\b",
+        ],
+    ),
     (
         "SEX OFFENSE",
-        [r"\brape\b", r"\bsexual\s+assault", r"\bsex\s+offense", r"\bsexual\s+abuse", r"\bsexual\s+battery", r"\bchild\s+mol", r"\bmolest", r"\blewd\b", r"\bindecent\s+", r"\bpornograph", r"\bchild\s+porn", r"\bprostitution\b", r"\bsex\s+traffick", r"\bsex\s+offender", r"\bfailure\s+to\s+register.*(sex|offender)", r"\bunlawful\s+sexual", r"\bfondl"],
+        [
+            r"\brape\b",
+            r"\bsex\s+offense",
+            r"\bsexual\s+abuse",
+            r"\bsexual\s+battery",
+            r"\bchild\s+mol",
+            r"\bmolest",
+            r"\blewd\b",
+            r"\bindecent\s+",
+            r"\bpornograph",
+            r"\bchild\s+porn",
+            r"\bprostitution\b",
+            r"\bsex\s+traffick",
+            r"\bsex\s+offender",
+            r"\bfailure\s+to\s+register.*(sex|offender)",
+            r"\bunlawful\s+sexual",
+            r"\bfondl",
+        ],
     ),
     # --- Homicide / violent ---
     (

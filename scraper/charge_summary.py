@@ -21,11 +21,27 @@ _NOISE = re.compile(
     r"(bond-\d+\w*)|"
     r"(n/a)+"
 )
+# Jail case class / docket tails and MTR booking prefixes.
+_STRIP_PREFIX = re.compile(r"(?i)^\s*MTR\s*[-–—:]\s*")
+_STRIP_OOC = re.compile(r"(?i)^\s*out\s+of\s+county(?:\s+hold)?\s*[/:\-]\s*")
 
 
 def _clean_segment(text: str) -> str:
     s = " ".join((text or "").replace("\u00a0", " ").split())
     s = _NOISE.sub(" ", s)
+    s = _STRIP_PREFIX.sub("", s)
+    # OUT OF COUNTY/POS MARIJ… → keep offense body when present
+    m = _STRIP_OOC.match(s)
+    if m:
+        body = s[m.end() :].strip()
+        from scraper.charge_admin import is_place_case_blob
+        from scraper.charge_sanitize import is_non_charge
+
+        if body and not is_place_case_blob(body) and not is_non_charge(body):
+            body = re.split(
+                r"\s*/\s*(?=[A-Z][A-Z\s]+(?:CO|COUNTY)\b)", body, maxsplit=1
+            )[0]
+            s = body
     s = re.sub(r"\s+", " ", s).strip(" \t,.;:-")
     return s
 

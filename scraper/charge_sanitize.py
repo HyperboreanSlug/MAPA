@@ -50,6 +50,8 @@ def is_state_name(text: str) -> bool:
 
 def is_non_charge(text: str) -> bool:
     """True when *text* must not be shown as a charge description."""
+    from scraper.charge_admin import is_out_of_county_admin
+
     s = _norm(text)
     if not s:
         return True
@@ -58,21 +60,23 @@ def is_non_charge(text: str) -> bool:
         return True
     if is_case_number(s):
         return True
-    # Empty mugshots.com charges grid / table chrome with no offense
     if "no data to display" in low:
         return True
     if re.search(r"count\s*=\s*0", low) and "offense date" in low:
         return True
-    # Leftover header-only chrome
     if "offense date" in low and "court type" in low and "bond" in low:
-        # Real offenses almost never list all three UI labels as the whole text
-        if not re.search(r"[a-z]{4,}", re.sub(
-            r"(?i)offense date|court type|bond type|charging agency|"
-            r"arresting agency|count\s*=\s*\d+|#\d+|charge",
-            " ",
-            low,
-        )):
+        if not re.search(
+            r"[a-z]{4,}",
+            re.sub(
+                r"(?i)offense date|court type|bond type|charging agency|"
+                r"arresting agency|count\s*=\s*\d+|#\d+|charge",
+                " ",
+                low,
+            ),
+        ):
             return True
+    if is_out_of_county_admin(s):
+        return True
     return False
 
 
