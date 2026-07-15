@@ -131,6 +131,38 @@ class EthnicNamesSignalsMixin:
         """First names that contradict South Asian ethnicity claims."""
         return signal in ("anglo", "slavic", "hispanic")
 
+    def _iter_given_name_tokens(
+        self,
+        first_name: Optional[str] = None,
+        middle_name: Optional[str] = None,
+    ) -> List[str]:
+        """Normalized given-name tokens from first + middle (skip initials)."""
+        tokens: List[str] = []
+        for part in (first_name, middle_name):
+            if not part:
+                continue
+            for tok in re.split(r"[\s\-]+", str(part).strip()):
+                if not tok or len(tok) < 2:
+                    continue
+                if len(tok) == 2 and tok.endswith("."):
+                    continue
+                norm = self._normalize_given_name(tok)
+                if norm and len(norm) >= 2:
+                    tokens.append(norm)
+        return tokens
+
+    def _has_african_american_given_name(
+        self,
+        first_name: Optional[str] = None,
+        middle_name: Optional[str] = None,
+    ) -> bool:
+        """True if any given-name token is on the AA first-name list."""
+        self._build_lookup_sets()
+        for tok in self._iter_given_name_tokens(first_name, middle_name):
+            if tok in self._aa_first_lc:
+                return True
+        return False
+
     def _resolve_given_name_signal(
         self,
         first_name: Optional[str] = None,

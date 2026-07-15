@@ -4,6 +4,12 @@ from __future__ import annotations
 from typing import List, Optional, Tuple
 
 from scraper.ethnic_names_asian_unique import matches_are_only_asian
+from scraper.ethnic_names_black_unique import is_black_only_name_combo
+
+
+def _is_black_family_label(ethnicity: str) -> bool:
+    eth = (ethnicity or "").strip()
+    return eth == "African American" or eth.startswith("African (")
 
 
 class EthnicNamesClassifyMixin:
@@ -24,6 +30,9 @@ class EthnicNamesClassifyMixin:
 
         Asian: high confidence from name alone only when the surname is
         *only Asian* (no non-Asian family hits, not a shared White/Asian name).
+
+        Black / African: high confidence only for a *Black-only first + last*
+        combo (distinctive AA given name + uniquely Black/African surname).
         """
         if not surname:
             return ("Unknown", 0.0, [])
@@ -52,6 +61,16 @@ class EthnicNamesClassifyMixin:
         has_portuguese = any(m[0] == "Portuguese" for m in matches)
         # High Asian conf only for exclusively Asian surnames (not Lee/Park/…).
         only_asian = matches_are_only_asian(surname_lc, matches)
+        # High Black conf only for AA first name + uniquely Black surname.
+        # Use AA list membership (not primary signal) so dual-listed given
+        # names like Jamal/Malik still qualify with uniquely Black surnames.
+        black_only_combo = is_black_only_name_combo(
+            surname_lc,
+            has_aa_first_name=self._has_african_american_given_name(
+                first_name, middle_name
+            ),
+            matches=matches,
+        )
 
         def sort_key(item: Tuple[str, str]) -> float:
             ethnicity, _source = item
@@ -87,13 +106,8 @@ class EthnicNamesClassifyMixin:
             elif ethnicity.startswith("Asian"):
                 score = 1.0 if only_asian else 0.25
             elif ethnicity == "African American":
-                score = 0.95
-                if fn_signal == "african_american":
-                    score += 0.5
-                elif fn_signal in ("anglo", "slavic"):
-                    score -= 0.35
-                elif fn_signal == "hispanic":
-                    score -= 0.2
+                # Require Black-only first + uniquely Black last.
+                score = 1.45 if black_only_combo else 0.25
             elif ethnicity in ("Jewish", "Portuguese", "Arabic"):
                 score = 0.85
                 if ethnicity == "Portuguese" and fn_signal == "hispanic":
@@ -101,7 +115,7 @@ class EthnicNamesClassifyMixin:
                 if ethnicity == "Portuguese" and fn_signal == "indian":
                     score += 0.15
             elif ethnicity.startswith("African ("):
-                score = 0.8
+                score = 1.0 if black_only_combo else 0.25
             elif ethnicity == "Native American":
                 score = 0.55
             elif ethnicity.startswith("European"):
@@ -158,6 +172,10 @@ class EthnicNamesClassifyMixin:
 
         # Name alone must not flag White as Asian unless surname is only Asian.
         if best_match.startswith("Asian") and not only_asian:
+            confidence = min(confidence, 0.35)
+
+        # Name alone must not flag White as Black unless Black-only first+last.
+        if _is_black_family_label(best_match) and not black_only_combo:
             confidence = min(confidence, 0.35)
 
         return (best_match, confidence, [m[0] for m in matches])

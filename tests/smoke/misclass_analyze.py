@@ -241,6 +241,52 @@ class MisclassAnalyzeTests(unittest.TestCase):
             self.assertTrue(e.startswith("Asian"), f"{first} {last} → {e}")
             self.assertGreaterEqual(c, 0.5, f"{first} {last} conf {c}")
 
+    def test_black_only_first_and_last_combo(self):
+        """White people not marked Black unless Black-only first + last combo."""
+        eth = EthnicNameDatabase()
+
+        def is_black_high(e: str, c: float) -> bool:
+            black = e == "African American" or e.startswith("African (")
+            return black and c >= 0.5
+
+        # Shared White/Black surnames — even with AA first names
+        for first, last in (
+            ("DeShawn", "Washington"),
+            ("Jamal", "Jefferson"),
+            ("Latasha", "Banks"),
+            ("John", "Washington"),
+            ("David", "Banks"),
+        ):
+            e, c, _ = eth.classify_by_name(last, first_name=first)
+            self.assertFalse(
+                is_black_high(e, c),
+                f"{first} {last} must not be high Black conf (got {e} {c})",
+            )
+        # Uniquely Black/African surname alone is not enough without AA first
+        for first, last in (
+            ("John", "Mwangi"),
+            ("John", "Adebayo"),
+            ("John", "Okeke"),
+            ("Michael", "Chukwu"),
+        ):
+            e, c, _ = eth.classify_by_name(last, first_name=first)
+            self.assertFalse(
+                is_black_high(e, c),
+                f"{first} {last} needs Black-only first (got {e} {c})",
+            )
+        # Black-only first + uniquely Black last → high Black conf
+        for first, last in (
+            ("Jamal", "Adebayo"),
+            ("DeShawn", "Okeke"),
+            ("Latasha", "Chukwu"),
+            ("Malik", "Mwangi"),
+        ):
+            e, c, _ = eth.classify_by_name(last, first_name=first)
+            self.assertTrue(
+                is_black_high(e, c),
+                f"{first} {last} should be high Black (got {e} {c})",
+            )
+
     def test_first_name_confidence_parity(self):
         """SOR parity: ambiguous Indian surname + Anglo first name is low conf."""
         eth = EthnicNameDatabase()

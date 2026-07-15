@@ -126,13 +126,16 @@ class EthnicNamesConfidenceMixin:
             base = 0.8 if len(matches) == 1 else 0.65
 
         # First-name adjustment
-        if best_match == "African American":
+        if best_match == "African American" or best_match.startswith("African ("):
             if first_name_signal == "african_american":
-                base = min(1.0, base + 0.12)  # DeShawn Washington
+                base = min(1.0, base + 0.12)  # DeShawn + unique Black surname
             elif first_name_signal in ("anglo", "slavic"):
-                base = min(base, 0.45)  # John Washington
+                base = min(base, 0.45)  # John Washington / John Mwangi
             elif first_name_signal == "hispanic":
                 base = min(base, 0.5)
+            # Dual-listed given names (Jamal/Malik) may signal "indian" while
+            # still being on the AA first-name list — do not dampen Black here;
+            # the black-only combo gate in classify handles allow/deny.
         elif first_name_signal == "indian":
             if best_match.startswith("Indian"):
                 base = min(1.0, base + (0.4 if is_ambiguous else 0.12))
