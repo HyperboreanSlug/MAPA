@@ -17,10 +17,19 @@ class QueryStatsMixin:
         return [str(r["race"]) for r in rows if r and r["race"]]
 
     def distinct_race_labels(self) -> List[str]:
-        """Merged display labels (White, Black, …) for filter dropdowns."""
-        from scraper.searcher import format_race_label
+        """Merged display labels (White, Black, …) for filter dropdowns.
 
-        labels = {format_race_label(r) for r in self.distinct_races()}
+        Only known race labels are returned — charge/docket fragments that
+        leaked into the race column must never appear in the UI dropdown.
+        """
+        from scraper.searcher import format_race_label
+        from scraper.searcher_race_tables import KNOWN_RACE_LABELS
+
+        labels = {
+            lab
+            for r in self.distinct_races()
+            if (lab := format_race_label(r)) in KNOWN_RACE_LABELS
+        }
         labels.add("Other/Unknown")
         return sorted(labels, key=lambda s: s.lower())
 

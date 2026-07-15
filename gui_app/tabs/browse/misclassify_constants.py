@@ -120,11 +120,30 @@ def actual_race_filter_values(bucket: str) -> List[str]:
 
 
 def picker_actual_race(label: Optional[str], options: List[str]) -> str:
-    """Value to show in a bucketed actual-race combo."""
+    """Value to show in a bucketed actual-race combo.
+
+    Never inject charge/docket junk into the dropdown: if the label cannot be
+    mapped to a known option, fall back to the first option (or Unknown).
+    """
     raw = " ".join(str(label or "").split()).strip() or "Unknown"
-    if options and set(options) <= set(BROWSE_ACTUAL_RACES):
-        return bucket_actual_race(raw) or raw
-    return raw
+    opts = list(options or [])
+    if opts and set(opts) <= set(BROWSE_ACTUAL_RACES):
+        bucket = bucket_actual_race(raw)
+        if bucket and bucket in opts:
+            return bucket
+        if raw in opts:
+            return raw
+        return opts[0] if opts else "Unknown"
+    if raw in opts:
+        return raw
+    bucket = bucket_actual_race(raw)
+    if bucket and bucket in opts:
+        return bucket
+    # Prefer Unknown when present rather than prepending garbage
+    for fallback in ("Unknown", "Other", "White"):
+        if fallback in opts:
+            return fallback
+    return opts[0] if opts else "Unknown"
 
 
 def actual_from_stated_race(recorded_race: Optional[str]) -> Optional[str]:

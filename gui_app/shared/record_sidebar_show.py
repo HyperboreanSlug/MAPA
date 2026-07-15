@@ -182,16 +182,17 @@ class RecordSidebarShowMixin:
 
             likely = picker_actual_race(likely_raw, opts)
         except Exception:
-            likely = likely_raw
+            likely = opts[0] if opts else "Unknown"
+        # Never enlarge the option list with free-text junk (charges, etc.)
         if likely not in opts:
-            opts = [likely] + opts
+            likely = opts[0] if opts else "Unknown"
         self._syncing_actual = True
         try:
             self.actual_race.configure(
                 values=opts,
                 state="normal" if self._on_actual_race else "disabled",
             )
-            self.actual_race.set(likely if likely in opts else opts[0])
+            self.actual_race.set(likely)
         finally:
             self._syncing_actual = False
         self._load_photo(self._record, token)

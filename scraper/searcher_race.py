@@ -4,7 +4,12 @@ from __future__ import annotations
 import re
 from typing import Optional
 
-from .searcher_race_tables import _ETHNICITY_COMPATIBLE_RACES, _RACE_ALIASES
+from .searcher_race_tables import (
+    KNOWN_RACE_LABELS,
+    _ETHNICITY_COMPATIBLE_RACES,
+    _KNOWN_RACE_KEYS,
+    _RACE_ALIASES,
+)
 
 
 def _canonical_race_key(recorded_race: str) -> str:
@@ -64,6 +69,9 @@ def _canonical_race_key(recorded_race: str) -> str:
     words = r_spaced.split()
     if "BLACK" in words or "AFRICAN AMERICAN" in r_spaced:
         return "BLACK"
+    # Afr Amer / Afro-American abbreviations
+    if "AFR" in words and any(w.startswith("AMER") for w in words):
+        return "BLACK"
     if r_spaced.startswith("WHITE") or r_spaced.endswith(" WHITE"):
         return "WHITE"
     if (
@@ -86,7 +94,13 @@ def _canonical_race_key(recorded_race: str) -> str:
         "NATIVE HAWAIIAN OR OTHER PACIFIC ISLANDER",
     ) or "PACIFIC ISLAND" in r_spaced:
         return "ASIAN"
-    return r_spaced
+    # Bare ASIAN word after other Asian checks
+    if "ASIAN" in words:
+        return "ASIAN"
+    # Never surface charge/gender/docket garbage as a race key
+    if r_spaced in _KNOWN_RACE_KEYS:
+        return r_spaced
+    return "UNKNOWN"
 
 
 def format_race_label(recorded_race: str) -> str:
@@ -106,6 +120,8 @@ def format_race_label(recorded_race: str) -> str:
         "pacific islander",
     ):
         return "Asian"
+    if lowered in ("native american", "american indian"):
+        return "Native American"
     key = _canonical_race_key(recorded_race)
     if key in ("UNKNOWN", "OTHER"):
         return "Other/Unknown"
@@ -114,12 +130,25 @@ def format_race_label(recorded_race: str) -> str:
     if key == "INDIAN":
         # Shared bucket: South Asian Indian + MENA stated-race values
         return "Indian / MENA"
-    if key in ("ASIAN", "ASIAN / PACIFIC ISLANDER", "PACIFIC ISLANDER"):
+    if key in ("ASIAN", "ASIAN / PACIFIC ISLANDER", "PACIFIC ISLANDER", "OTHER ASIAN"):
         return "Asian"
+    if key == "NATIVE AMERICAN":
+        return "Native American"
+    if key == "WHITE":
+        return "White"
+    if key == "BLACK":
+        return "Black"
+    if key == "HISPANIC":
+        return "Hispanic"
+    # Unknown canonical keys must not become charge-like title-cased labels
+    if key not in _KNOWN_RACE_KEYS:
+        return "Other/Unknown"
     if len(key) <= 2:
-        return key
-    return key.title().replace("Or", "or").replace("/ ", "/")
-
+        return "Other/Unknown"
+    label = key.title().replace("Or", "or").replace("/ ", "/")
+    if label not in KNOWN_RACE_LABELS:
+        return "Other/Unknown"
+    return label
 
 def _ethnicity_family(likely_ethnicity: str) -> str:
     eth = (likely_ethnicity or "").strip().lower()

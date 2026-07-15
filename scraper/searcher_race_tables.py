@@ -106,4 +106,39 @@ _RACE_ALIASES = {
     "MIDDLE EASTERN OR NORTH AFRICAN": "INDIAN",
     "MIDDLE EASTERN OR NORTH AFRICA": "INDIAN",
     "NORTH AFRICAN": "INDIAN",
+    # Common booking / OCR variants
+    "AFR AMER": "BLACK",
+    "AFR AMERICAN": "BLACK",
+    "AFRO AMERICAN": "BLACK",
+    "MEXICAN": "HISPANIC",
+    "MEXICANO": "HISPANIC",
+    "UNKOWN": "UNKNOWN",  # common misspelling
+    "NATIVE": "NATIVE AMERICAN",
 }
+
+# Canonical keys that may leave _canonical_race_key (anything else → UNKNOWN).
+_KNOWN_RACE_KEYS = frozenset({
+    "WHITE",
+    "BLACK",
+    "HISPANIC",
+    "ASIAN",
+    "NATIVE AMERICAN",
+    "INDIAN",
+    "OTHER",
+    "UNKNOWN",
+    "WHITE HISPANIC",
+    "OTHER ASIAN",
+    "ASIAN / PACIFIC ISLANDER",
+    "PACIFIC ISLANDER",
+})
+
+# Display labels used by Browse / filter dropdowns (never charge fragments).
+KNOWN_RACE_LABELS = frozenset({
+    "White",
+    "Black",
+    "Hispanic",
+    "Asian",
+    "Native American",
+    "Indian / MENA",
+    "Other/Unknown",
+})
