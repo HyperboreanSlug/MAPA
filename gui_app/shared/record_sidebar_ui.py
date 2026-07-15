@@ -39,8 +39,8 @@ _DETAIL_KEYS = (
     ("Agency", ("agency",)),
     ("Height", ("height",)),
     ("Weight", ("weight",)),
-    ("Hair", ("hair",)),
-    ("Eyes", ("eyes",)),
+    ("Hair", ("hair", "hair_color")),
+    ("Eyes", ("eyes", "eye_color")),
     ("Source URL", ("source_url",)),
     ("Photo path", ("photo_path",)),
 )

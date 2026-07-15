@@ -89,6 +89,10 @@ class SchemaMixin:
                 photo_url TEXT,
                 photo_path TEXT,
                 html_path TEXT,
+                hair TEXT,
+                eyes TEXT,
+                height TEXT,
+                weight TEXT,
                 scraped_at TEXT DEFAULT CURRENT_TIMESTAMP
             )
             """
@@ -99,6 +103,10 @@ class SchemaMixin:
             ("photo_url", "TEXT"),
             ("photo_path", "TEXT"),
             ("html_path", "TEXT"),
+            ("hair", "TEXT"),
+            ("eyes", "TEXT"),
+            ("height", "TEXT"),
+            ("weight", "TEXT"),
         ):
             if col not in cols:
                 c.execute(f"ALTER TABLE arrests ADD COLUMN {col} {typ}")

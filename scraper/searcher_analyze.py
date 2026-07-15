@@ -117,6 +117,18 @@ def analyze_ethnicities_impl(
         base_count += 1
         if _is_compatible(likely_eth, recorded_race, recorded_ethnicity):
             continue
+        # Eye/hair (e.g. brown eyes + brown hair) corroborates or weakens
+        from .searcher_appearance import apply_appearance_signals
+
+        confidence, matching_names, _meta = apply_appearance_signals(
+            record,
+            likely_eth,
+            confidence,
+            matching_names,
+            family=family,
+        )
+        if confidence < min_confidence:
+            continue
         if not record.get("charge_category"):
             record["charge_category"] = classify_charge(record)
         record["likely_ethnicity"] = likely_eth

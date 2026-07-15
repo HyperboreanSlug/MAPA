@@ -14,6 +14,7 @@ CANONICAL_FIELDS = (
     "charge_description", "charge_group", "charge_level", "charge_class",
     "statute", "case_number", "booking_id",
     "source_id", "source_url", "source_system", "raw_json",
+    "hair", "eyes", "height", "weight",
 )
 
 

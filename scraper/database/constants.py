@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict
 
 DEFAULT_DB_PATH = "data/arrests.db"
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 _MERGE_SEP = " | "
 
@@ -16,6 +16,7 @@ _MERGE_UNION_FIELDS = frozenset({
     "source_url", "source_id", "source_system",
     "arrest_date", "booking_date", "address",
     "photo_url", "photo_path", "html_path",
+    "hair", "eyes", "height", "weight",
 })
 
 _ARREST_COLUMNS = (
@@ -30,6 +31,7 @@ _ARREST_COLUMNS = (
     "source_id", "source_url", "source_system", "raw_json",
     "likely_ethnicity", "name_confidence", "flags",
     "photo_url", "photo_path", "html_path",
+    "hair", "eyes", "height", "weight",
 )
 
 _INSERT_SQL = (

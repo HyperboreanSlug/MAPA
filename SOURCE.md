@@ -220,7 +220,8 @@ tests/                         # Smoke suite split under tests/smoke/
 |--------|----------|
 | `searcher.py` | Public re-export (`ArrestSearcher`, race helpers) |
 | `searcher_core.py` | `ArrestSearcher` search methods |
-| `searcher_analyze.py` | `analyze_ethnicities` loop |
+| `searcher_analyze.py` | `analyze_ethnicities` loop (name + eye/hair appearance) |
+| `searcher_appearance.py` | Eye/hair color normalize + conf boost/cut (brown+brown, light phenotype) |
 | `searcher_export.py` | Export misclass CSV + singleton |
 | `searcher_race.py` | Canonical race keys, `format_race_label`, `_is_compatible` |
 | `searcher_race_tables.py` | Alias / compatible-race tables |

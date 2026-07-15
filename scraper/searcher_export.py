@@ -36,6 +36,7 @@ class ArrestSearcherExportMixin:
                 csv.writer(f).writerow(
                     [
                         "name", "recorded_race", "likely_ethnicity", "confidence",
+                        "eyes", "hair", "appearance",
                         "charge", "charge_category", "state", "arrest_date",
                         "source_system",
                     ]
@@ -46,6 +47,7 @@ class ArrestSearcherExportMixin:
                 f,
                 fieldnames=[
                     "name", "recorded_race", "likely_ethnicity", "confidence",
+                    "eyes", "hair", "appearance", "matching_names",
                     "charge", "charge_category", "state", "arrest_date",
                     "source_system", "source_url",
                 ],
@@ -62,6 +64,10 @@ class ArrestSearcherExportMixin:
                     "recorded_race": mc.expected_race,
                     "likely_ethnicity": mc.likely_ethnicity,
                     "confidence": f"{mc.confidence:.3f}",
+                    "eyes": rec.get("eyes") or rec.get("eye_color") or "",
+                    "hair": rec.get("hair") or rec.get("hair_color") or "",
+                    "appearance": rec.get("_appearance_note") or "",
+                    "matching_names": "; ".join(mc.matching_names or []),
                     "charge": rec.get("charge_description") or "",
                     "charge_category": category_label(cat) if cat else "",
                     "state": rec.get("state") or "",

@@ -118,6 +118,36 @@ class MisclassAnalyzeTests(unittest.TestCase):
         self.assertFalse(_is_compatible("Hispanic", "White"))
         self.assertFalse(_is_compatible("Hispanic", "Black"))
 
+    def test_brown_eyes_brown_hair_boosts_hispanic_white(self):
+        """Brown eyes + brown hair raises confidence for Hispanic×White."""
+        from scraper.searcher_appearance import (
+            apply_appearance_signals,
+            appearance_adjustment,
+            normalize_color,
+        )
+
+        self.assertEqual(normalize_color("BRO", kind="eye"), "brown")
+        self.assertEqual(normalize_color("BLN", kind="hair"), "blond")
+        d_boost, tags = appearance_adjustment("hispanic", "WHITE", "brown", "brown")
+        self.assertGreater(d_boost, 0)
+        self.assertTrue(any("brown" in t for t in tags))
+        d_cut, tags_cut = appearance_adjustment("hispanic", "WHITE", "blue", "blond")
+        self.assertLess(d_cut, 0)
+
+        rec = {
+            "race": "White",
+            "eyes": "Brown",
+            "hair": "Brown",
+            "last_name": "Garcia",
+        }
+        conf, names, meta = apply_appearance_signals(
+            rec, "Hispanic", 0.70, ["Garcia"], family="hispanic"
+        )
+        self.assertGreater(conf, 0.70)
+        self.assertTrue(any("appearance:" in n for n in names))
+        self.assertEqual(meta.get("eye"), "brown")
+        self.assertIn("brown eyes + brown hair", rec.get("_appearance_note") or "")
+
     def test_ethnic_db_loads(self):
         eth = EthnicNameDatabase()
         self.assertTrue(eth.is_indian_surname("Singh") or eth.classify_by_name("Singh")[0].startswith("Indian"))
