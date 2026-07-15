@@ -144,6 +144,7 @@ _CARD_ACRONYMS = {
     "Fta": "FTA",
     "Ice": "ICE",
     "Id": "ID",
+    "Dl": "DL",
     "Mv": "MV",
     "Be": "B&E",
     "Usc": "USC",
@@ -163,6 +164,11 @@ _ATTEMPT = re.compile(
 )
 _ORDINAL_DEGREE = re.compile(
     r"\b(\d+)\s*[-–—]?\s*(?:St|Nd|Rd|Th)\b(?:\s+Degree)?",
+    re.IGNORECASE,
+)
+# Jail shorthand glued to digits: 3RD / 2ND / 1ST (optionally + OR MORE)
+_ORDINAL_GLUED = re.compile(
+    r"\b(\d+)(st|nd|rd|th)\b(?:\s+Degree)?",
     re.IGNORECASE,
 )
 _PAGE_JUNK = re.compile(r"(?i)\s*[-–—]?\s*Page\s*:\s*\d+.*$")
@@ -205,13 +211,27 @@ def _polish_card_charge(text: str) -> str:
         s = _TRAILING_ROLE.sub("", s)
         s = _LEADING_CODE.sub("", s)
         s = _ATTEMPT.sub("Attempted", s)
+        s = _ORDINAL_GLUED.sub(_ordinal_degree, s)
         s = _ORDINAL_DEGREE.sub(_ordinal_degree, s)
         s = _SEX_CHILD.sub(r"\1 of a Child", s)
+
         s = _BAC_FRAG.sub("", s)
         s = re.sub(r"\s+", " ", s).strip(" -–—:;")
         if s:
             parts.append(s)
     return "; ".join(parts)
+
+
+def _title_token(word: str) -> str:
+    """Title-case a token; DRIVER'S → Driver's (not Driver'S)."""
+    if not word:
+        return word
+    letters = re.sub(r"[^A-Za-z]", "", word)
+    if letters and letters.isupper() and any(c in word for c in "'’"):
+        return word[0].upper() + word[1:].lower()
+    if word.isupper() and word.isalpha() and len(word) > 1:
+        return word.title()
+    return word
 
 
 def _card_charge_text(text: str) -> str:
@@ -221,18 +241,25 @@ def _card_charge_text(text: str) -> str:
         s = " ".join(raw.split()).strip()
         if not s:
             continue
+        s = re.sub(r"\(\s+", "(", s)
+        s = re.sub(r"\s+\)", ")", s)
         if s.isupper() and any(c.isalpha() for c in s):
             s = s.title()
         words = s.split()
         fixed: list[str] = []
         for i, w in enumerate(words):
-            if i > 0 and w in _SMALL_WORDS:
-                fixed.append(w.lower())
-            elif w in _CARD_ACRONYMS:
-                fixed.append(_CARD_ACRONYMS[w])
+            # Strip trailing punctuation for acronym lookup
+            core, punct = w, ""
+            if w and w[-1] in ".,;:":
+                core, punct = w[:-1], w[-1]
+            if i > 0 and core in _SMALL_WORDS:
+                fixed.append(core.lower() + punct)
+            elif core in _CARD_ACRONYMS:
+                fixed.append(_CARD_ACRONYMS[core] + punct)
             else:
-                key = w[:1].upper() + w[1:] if w else w
-                fixed.append(_CARD_ACRONYMS.get(key, w))
+                titled = _title_token(core)
+                key = titled[:1].upper() + titled[1:] if titled else titled
+                fixed.append(_CARD_ACRONYMS.get(key, titled) + punct)
         s = " ".join(fixed)
         s = re.sub(
             r"\b(" + "|".join(_CARD_ACRONYMS.keys()) + r")\b",

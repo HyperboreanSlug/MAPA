@@ -27,10 +27,55 @@ _CASE_NUMBER = re.compile(
 
 _SPLIT = re.compile(r"\s*[;|]\s*")
 _WORDY = re.compile(r"[A-Za-z]{3,}")
+_HTML_TAG = re.compile(r"<[^>]+>")
+# Fielded jail dumps: "Description: SPEEDING; Issuing Authority: …; Bond …"
+_HAS_FIELDED_DESC = re.compile(
+    r"(?i)\bDescription\s*:.*(Issuing\s+Authority|Bond\s+Information|"
+    r"Crime\s+Classification|Offense\s+Disposition)"
+)
+_DESC_FIELD = re.compile(r"(?i)^\s*Description\s*:\s*(.+)$")
+_META_FIELD = re.compile(
+    r"(?i)^\s*(?:"
+    r"Issuing\s+Authority|Offense\s+Disposition|Crime\s+Classification|"
+    r"Bond\s+Information|Bond\s+Type|Bond\s+Amount(?:\s+Required)?|"
+    r"Disposition|Court(?:\s+Type)?"
+    r")\s*:"
+)
 
 
 def _norm(text: str) -> str:
     return " ".join((text or "").replace("\u00a0", " ").split()).strip(" \t,.;:-")
+
+
+def _strip_html(text: str) -> str:
+    if not text or "<" not in text:
+        return text or ""
+    return _norm(_HTML_TAG.sub(" ", text))
+
+
+def _extract_fielded_descriptions(text: str) -> str:
+    """Pull offense lines from Description: fields; drop bond/court chrome."""
+    s = _strip_html(text)
+    if not s or not _HAS_FIELDED_DESC.search(s):
+        return ""
+    kept: List[str] = []
+    seen = set()
+    for part in _SPLIT.split(s) or [s]:
+        p = _norm(part)
+        if not p or _META_FIELD.match(p):
+            continue
+        m = _DESC_FIELD.match(p)
+        body = _norm(m.group(1)) if m else ""
+        if not body:
+            continue
+        if is_non_charge(body) or _META_FIELD.match(body):
+            continue
+        key = body.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        kept.append(body)
+    return "; ".join(kept)
 
 
 def is_case_number(text: str) -> bool:
@@ -133,6 +178,11 @@ def sanitize_charge_text(text: str) -> str:
     raw = _norm(text)
     if not raw:
         return ""
+    raw = _strip_html(raw)
+    # Fielded multi-charge dump (Randall County / recentlybooked style)
+    fielded = _extract_fielded_descriptions(raw)
+    if fielded:
+        return fielded
     # Whole-blob chrome extraction first (multi-charge glued without ';')
     if has_charge_table_chrome(raw) and ";" not in raw and "|" not in raw:
         stripped = strip_charge_table_chrome(raw)
@@ -144,6 +194,11 @@ def sanitize_charge_text(text: str) -> str:
     seen = set()
     for p in parts:
         s = _norm(p)
+        if _META_FIELD.match(s):
+            continue
+        m = _DESC_FIELD.match(s)
+        if m:
+            s = _norm(m.group(1))
         if has_charge_table_chrome(s) or re.search(r"#\d+", s):
             s = strip_charge_table_chrome(s)
         if not s or is_non_charge(s):

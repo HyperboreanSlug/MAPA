@@ -94,6 +94,47 @@ class ChargeSanitizeTests(unittest.TestCase):
         self.assertNotIn("Offense Date", out)
         self.assertNotIn("Count=", out)
 
+    def test_fielded_description_bond_html_stripped(self):
+        """Randall-style field dump → offense lines only (Pena card)."""
+        raw = (
+            "Description: DRIVING WHILE INTOXICATED 3RD OR MORE; "
+            "Issuing Authority: Dist Court; Offense Disposition: N/A; "
+            "Crime Classification: F3; "
+            "Bond Information: <ul><li>Bond Type: NS "
+            "<li>Bond Amount Required : $0</li></ul>; "
+            "Description: SPEEDING; Issuing Authority: Amarillo Mun. Court; "
+            "Crime Classification: MC; "
+            "Bond Information: <ul><li>Bond Type: CS "
+            "<li>Bond Amount Required : $500</li></ul>; "
+            "Description: EXPIRED DL; "
+            "Description: DRIVING WHILE LICENSE INVALID; "
+            "Issuing Authority: JP1; "
+            "Bond Information: <ul><li>Bond Type: FA "
+            "<li>Bond Amount Required : $940.8</li></ul>; "
+            "Description: NO DRIVER'S LICENSE (WHEN UNLICENSED); "
+            "Bond Information: <ul><li>Bond Type: FA "
+            "<li>Bond Amount Required : $522.6</li></ul>"
+        )
+        out = sanitize_charge_text(raw)
+        self.assertIn("DRIVING WHILE INTOXICATED 3RD OR MORE", out)
+        self.assertIn("SPEEDING", out)
+        self.assertIn("EXPIRED DL", out)
+        self.assertIn("DRIVING WHILE LICENSE INVALID", out)
+        self.assertIn("NO DRIVER'S LICENSE", out)
+        self.assertNotIn("Issuing Authority", out)
+        self.assertNotIn("Bond", out)
+        self.assertNotIn("<ul>", out)
+        self.assertNotIn("Crime Classification", out)
+
+        from gui_app.shared.export_card_fields import crime
+
+        card = crime({"charge_description": raw})
+        self.assertIn("Driving While Intoxicated", card)
+        self.assertIn("Speeding", card)
+        self.assertNotIn("Issuing Authority", card)
+        self.assertNotIn("<", card)
+        self.assertNotIn("Bond", card)
+
 
 if __name__ == "__main__":
     unittest.main()
