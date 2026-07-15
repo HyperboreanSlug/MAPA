@@ -96,10 +96,10 @@ class MugshotsComCountyMixin:
                 card["referer"] = list_url
                 card["_scrape_loc"] = loc
                 batch.append(card)
-            # All cards already known (or empty page set) → stop; do not keep
-            # requesting higher page numbers of the same listing.
+            # Keep paging past already-known listing pages until empty/repeat.
             if not batch:
-                break
+                page += 1
+                continue
 
             if workers == 1:
                 for card in batch:

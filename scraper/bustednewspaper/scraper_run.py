@@ -95,7 +95,6 @@ class BustedNewspaperScraperRun:
             if prev_page_urls is not None and page_urls == prev_page_urls:
                 break
             prev_page_urls = page_urls
-            fresh = 0
             for card in cards:
                 if self._cancelled(cancel_check):
                     return records
@@ -105,7 +104,6 @@ class BustedNewspaperScraperRun:
                 if source_url in known:
                     continue
                 known.add(source_url)
-                fresh += 1
                 card = dict(card)
                 card["_scrape_loc"] = loc
                 done = self._enrich_record(card, with_photos=with_photos)
@@ -128,9 +126,7 @@ class BustedNewspaperScraperRun:
                         )
                     except TypeError:
                         progress_cb(len(records), row_limit or None)
-            # Entire listing page already known → stop (avoid re-walking).
-            if fresh == 0:
-                break
+            # Keep paging past already-known listing pages until empty/repeat.
             page += 1
         return records
 

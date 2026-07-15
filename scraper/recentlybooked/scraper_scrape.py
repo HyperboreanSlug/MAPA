@@ -95,9 +95,11 @@ class RecentlyBookedScrapeMixin:
                 card = dict(card)
                 card["_scrape_loc"] = loc
                 fresh.append(card)
-            # No new detail URLs on this listing page → stop pagination.
+            # Skip already-known detail URLs, but keep paging until the listing
+            # is empty or repeats (do not stop just because this page was known).
             if not fresh:
-                break
+                page += 1
+                continue
             if workers == 1:
                 for card in fresh:
                     if self._cancelled(cancel_check):

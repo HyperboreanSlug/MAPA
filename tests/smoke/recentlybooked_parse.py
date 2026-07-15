@@ -2,11 +2,64 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import MagicMock, patch
 
 from tests.smoke._path import ROOT
 
 
 class RecentlyBookedParseTests(unittest.TestCase):
+    def test_scrape_county_pages_past_known_urls(self):
+        """Full scrape must not stop a county when page 1 is already in the DB."""
+        from scraper.recentlybooked import RecentlyBookedScraper
+
+        pages = {
+            "1": [
+                {
+                    "source_url": "https://recentlybooked.com/xx/co/a~1",
+                    "source_system": "recentlybooked",
+                },
+                {
+                    "source_url": "https://recentlybooked.com/xx/co/b~1",
+                    "source_system": "recentlybooked",
+                },
+            ],
+            "2": [
+                {
+                    "source_url": "https://recentlybooked.com/xx/co/c~1",
+                    "source_system": "recentlybooked",
+                },
+            ],
+            "3": [],
+        }
+
+        client = MagicMock()
+        client.get = lambda url: (
+            url.rsplit("p=", 1)[-1] if "?p=" in url else "1"
+        )
+
+        with patch(
+            "scraper.recentlybooked.scraper_scrape.parse_county_cards",
+            side_effect=lambda html, *a, **k: list(pages.get(str(html), [])),
+        ):
+            s = RecentlyBookedScraper(client=client, delay=0)
+
+            def _proc(card, **_kw):
+                return dict(card)
+
+            s._process_record = _proc  # type: ignore[method-assign]
+            recs = s.scrape_county(
+                "xx",
+                "co",
+                skip_existing_urls={
+                    "https://recentlybooked.com/xx/co/a~1",
+                    "https://recentlybooked.com/xx/co/b~1",
+                },
+                with_photos=False,
+                with_html=False,
+            )
+        self.assertEqual(len(recs), 1)
+        self.assertIn("/c~1", recs[0]["source_url"])
+
     def test_fixture_county_and_detail(self):
         from scraper.recentlybooked.parse import parse_county_cards, parse_detail
 
