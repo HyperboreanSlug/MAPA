@@ -432,6 +432,7 @@ tests/                         # Smoke suite split under tests/smoke/
 | DeepFace default faces/recorded | `deepface/scan_build_form.py`, settings |
 | Add a new mugshot host | `mugshot_sources/registry.py` + new package like `mugshotscom/` + `geo.py` dispatch |
 | New open-data city | `config_sources.py` + field map |
+| Backfill mugshots.com Date added → dates | `scripts/backfill_mugshotscom_dates.py` |
 
 ---
 
@@ -440,7 +441,7 @@ tests/                         # Smoke suite split under tests/smoke/
 ```text
 python -c "from gui_app.shell import ArrestArchiverApp; from scraper.database import Database; from scraper.searcher import ArrestSearcher; print('ok')"
 python -m unittest tests.test_smoke -v
-# Expect: Ran 19 tests … OK
+# Expect: Ran 21+ tests … OK
 # Expect: no production .py > 200 lines (except database_monolith_backup.py)
 ```
 
