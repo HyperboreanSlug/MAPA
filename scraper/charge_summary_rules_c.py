@@ -14,16 +14,23 @@ _SUMMARY_RULES_C: List[Tuple[str, List[str]]] = [
         '\\bgiving\\s+false\\s+id',
     ]),
     ('HOLD FOR OTHER AGENCY', [
-        '\\bhold\\s+for\\s+(another|other)\\s+agency', '\\bhold\\s+for\\s+agency',
-        '\\bhold\\s+for\\s+[a-z].*county', '\\bhold\\s+for\\s+[a-z]', '\\bout\\s+of\\s+county\\s+hold',
+        # "Holding" (gerund) is common on dockets; match hold/holding/held
+        '\\bhold(?:ing)?\\s+for\\s+(another|other)\\s+agency',
+        '\\bhold(?:ing)?\\s+for\\s+agency',
+        '\\bheld\\s+for\\s+(another|other)\\s+agency',
+        '\\bhold(?:ing)?\\s+for\\s+[a-z].*county', '\\bhold(?:ing)?\\s+for\\s+[a-z]',
+        '\\bout\\s+of\\s+county\\s+hold',
         '\\bout\\s+of\\s+county\\s+warrant', '\\bout\\s+of\\s+county\\s*/', '\\bout\\s+of\\s+county\\b',
-        '\\bcourtesy\\s+hold', '\\bhousing\\s+for\\b', '\\bhold\\s+for\\s+usms\\b', '\\bhold\\s+for\\s+transport',
+        '\\boutside\\s+agency', '\\bagency\\s+wr(?:nt|arrant)',
+        '\\bcourtesy\\s+hold', '\\bhousing\\s+for\\b',
+        '\\bhold(?:ing)?\\s+for\\s+usms\\b', '\\bhold(?:ing)?\\s+for\\s+transport',
         '\\btemporary\\s+hold\\b', '\\b24\\s*hour\\s+hold', '\\bcourt\\s+order\\s+hold',
-        '\\bfederal\\s+prisoner', '\\bprebook\\b', '\\bhold\\b$', '^hold\\b',
+        '\\bfederal\\s+prisoner', '\\bprebook\\b',
+        '\\bhold(?:ing)?\\b$', '^hold(?:ing)?\\b',
     ]),
     ('BENCH WARRANT / ALIAS WRIT', [
         '\\bbench\\s+warrant', '\\balias\\s+writ', '\\bwarrant\\b', '\\b15-10-60\\b', '\\bpublic\\s+order\\s+crimes-?aw',
-        '\\balias\\b', '\\bcc\\s*-\\s*alias',
+        '\\balias\\b', '\\bcc\\s*-\\s*alias', '^\\s*writ\\s*$',
     ]),
     ('FAILURE TO IDENTIFY', [
         '\\bfail(ure)?\\s+to\\s+id\\b', '\\bfail(ure)?\\s+to\\s+identify', '\\bfail\\s+to\\s+id\\s+fugitive',
@@ -48,7 +55,7 @@ _SUMMARY_RULES_C: List[Tuple[str, List[str]]] = [
         '\\bunderage\\s+consumption', '\\bpossession\\s+of\\s+alcohol',
     ]),
     ('DISORDERLY CONDUCT', [
-        '\\bdisorderly\\b', '\\bloitering\\b', '\\baffray\\b', '\\briot\\b',
+        '\\bdisorderly\\b', '\\bdisord(?:erly)?\\s+conduct', '\\bloitering\\b', '\\baffray\\b', '\\briot\\b',
     ]),
     ('ESCAPE / JAIL OFFENSE', [
         '\\bescape\\b', '\\bserving\\s+time', '\\bsentence\\s+to\\s+serve', '\\breturn\\s+for\\s+court',

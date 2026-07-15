@@ -73,6 +73,30 @@ class ChargeFilterTests(unittest.TestCase):
             summarize_charge("A ASSLT CBI FV"),
             "DOMESTIC VIOLENCE",
         )
+        # AR statute wording is "battering", not "battery"
+        for raw in (
+            "Domestic Battering",
+            "DOMESTIC BATTERING - 3RD DEGREE",
+            "DOMESTIC BATTERING IN THE THIRD DEGREE - MISDEMEANOR",
+            "TCA Description DOMESTIC BATTERING - 3RD DEGREE (M)",
+        ):
+            self.assertEqual(summarize_charge(raw), "DOMESTIC VIOLENCE", msg=raw)
+        # Gerund "Holding" must match the same bucket as "Hold"
+        for raw in (
+            "Holding For Other Agency",
+            "HOLDING FOR OTHER AGENCY",
+            "HOLD FOR OTHER AGENCY",
+            "O/W MISD: Outside Agency Wrnt",
+        ):
+            self.assertEqual(
+                summarize_charge(raw),
+                "HOLD FOR OTHER AGENCY",
+                msg=raw,
+            )
+        self.assertEqual(
+            summarize_charge("SEXUAL SOLICITATION OF A CHILD"),
+            "SEX OFFENSE",
+        )
         self.assertEqual(
             summarize_charge("UNL RESTRAINT"),
             "KIDNAPPING / FALSE IMPRISONMENT",

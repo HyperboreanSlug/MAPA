@@ -15,10 +15,12 @@ _SUMMARY_RULES_A: List[Tuple[str, List[str]]] = [
         '\\bfta\\s+failure',
     ]),
     ('PROBATION VIOLATION', [
-        '\\bprobation\\s+viol', '\\bprobation\\s+revoc', '\\bvop\\b', '\\bviolation\\s+of\\s+probation',
+        '\\bprobation\\s+viol', '\\bprobation\\s+revoc', '\\bprobation\\s+revok', '\\bvop\\b',
+        '\\bviolation\\s+of\\s+probation',
         '\\bpv\\s*[-–—]?\\s*probation', '\\bobstruction-?\\s*pv\\b.*probation', '\\b15-22-54\\b',
         '\\bparole\\s+viol', '\\bviolation\\s+of\\s+parole', '\\bpv\\s*[-–—]?\\s*parole',
         '\\bconditional\\s+release\\s+viol', '\\b15-18-121\\b',
+        '^\\s*pv\\s*$', '^\\s*pv\\s*[-–—/]',
     ]),
     ('DUI', [
         '\\bdui\\b', '\\bdwi\\b', '\\bowi\\b', '\\bovi\\b', '\\bdwui\\b', '\\bd\\.?\\s*u\\.?\\s*i\\.?\\b',
@@ -61,10 +63,13 @@ _SUMMARY_RULES_A: List[Tuple[str, List[str]]] = [
     ]),
     ('DOMESTIC VIOLENCE', [
         '\\bdomestic\\s+violence', '\\bdomestice?\\s+violence', '\\bdomestic\\s+assault',
-        '\\bdomestic\\s+battery', '\\bfamily\\s+violence', '\\bassault\\s+causes\\s+bodily\\s+injury\\s+family',
+        # AR statutes use "Domestic Battering" (not only "battery")
+        '\\bdomestic\\s+batter(?:y|ing)?',
+        '\\bfamily\\s+violence', '\\bassault\\s+causes\\s+bodily\\s+injury\\s+family',
         '\\basslt\\s+cbi\\s+fv\\b', '\\bsimple\\s+assault-?family', '\\bharassment-?family',
         '\\bassault-domestic', '\\b13a-6-132\\b', '\\bintimate\\s+partner', '\\bdating\\s+violence',
-        '\\bfamily\\s+member',
+        '\\bfamily\\s+member', '\\bcorp(?:oral)?\\s+inj(?:ury)?.{0,20}\\b(spouse|cohab)',
+        '\\binf\\s+corp\\s+inj', '\\b273\\.5\\b',
     ]),
     ('PROTECTIVE ORDER VIOLATION', [
         '\\bprotect(ive)?\\s+order', '\\brestraining\\s+order', '\\bviol\\s+bond/protect',
@@ -77,11 +82,16 @@ _SUMMARY_RULES_A: List[Tuple[str, List[str]]] = [
     ('SEX OFFENSE', [
         '\\bsexual\\s+assault\\b', '\\bsexual\\s+asslt\\b', '\\bsex\\s+asslt\\b', '\\bsex\\s+assault\\b',
         '\\brape\\b', '\\bsex\\s+offense', '\\bsexual\\s+abuse', '\\bsexual\\s+battery',
-        '\\bsexual\\s+misconduct', '\\bsodomy\\b', '\\bchild\\s+mol', '\\bmolest', '\\blewd\\b',
+        '\\bsexual\\s+misconduct', '\\bsexual\\s+conduct', '\\bsexual\\s+solicitation',
+        '\\bsexual\\s+exploit', '\\bsex(?:ual)?\\s+penetrat', '\\boral\\s+copulat',
+        '\\bcarnal\\s+abuse', '\\bincest\\b', '\\bsodomy\\b', '\\bchild\\s+mol', '\\bmolest', '\\blewd\\b',
         '\\bindecent\\s+', '\\bpornograph', '\\bchild\\s+porn', '\\bobscene\\s+matter',
         '\\bprostitution\\b', '\\bsex\\s+traffick', '\\bsex\\s+offender', '\\bfailure\\s+to\\s+register.*(sex|offender)',
         '\\bunlawful\\s+sexual', '\\bfondl', '\\benticing\\s+a\\s+child', '\\belectronic\\s+solicitation',
-        '\\b13a-6-6[1-9]\\b', '\\b13a-6-12[0-9]\\b',
+        '\\bengage\\s+child\\s+in\\s+sex', '\\bluring\\s+a\\s+minor', '\\bsex\\s+act.*student',
+        '\\bdeviant\\s+sexual', '\\bharmful\\s+matter.*minor', '\\bviolation\\s+of\\s+a\\s+minor',
+        '\\b13a-6-6[1-9]\\b', '\\b13a-6-12[0-9]\\b', '\\b13a-6-81\\b', '\\b13a-13-3\\b',
+        '\\b13-1405\\b', '\\b13-3553\\b', '\\b13-3554\\b',
     ]),
     ('HOMICIDE / MURDER', [
         '\\bmurder\\b', '\\bhomicide\\b', '\\bmanslaughter\\b',

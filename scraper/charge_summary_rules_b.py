@@ -9,7 +9,7 @@ _SUMMARY_RULES_B: List[Tuple[str, List[str]]] = [
     ]),
     ('ASSAULT / BATTERY', [
         '\\baggravated\\s+assault', '\\bfelonious\\s+assault', '\\bsimple\\s+assault',
-        '\\bassault\\b', '\\bbattery\\b', '\\bstrangul', '\\bterroristic\\s+threat', '\\bthreat\\s+to\\s+(kill|injure)',
+        '\\bassault\\b', '\\bbatter(?:y|ing)\\b', '\\bstrangul', '\\bterroristic\\s+threat', '\\bthreat\\s+to\\s+(kill|injure)',
         '\\bmalicious\\s+wound', '\\bmayhem\\b', '\\bmenacing\\b', '\\bcommunicating\\s+threats',
         '\\breckless\\s+endanger', '\\bbodily\\s+harm',
     ]),
