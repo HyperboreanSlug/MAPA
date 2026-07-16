@@ -163,15 +163,42 @@ class RecentlyBookedProcessMixin:
                     progress_cb=progress_cb, record_cb=forward, workers=1,
                 )
 
+        if not counties:
+            self._report(
+                progress_cb,
+                0,
+                {"label": "recentlybooked · 0 counties to scrape"},
+            )
+            return records
+
+        errors: List[str] = []
         with ThreadPoolExecutor(max_workers=workers) as pool:
-            futures = [pool.submit(job, pair) for pair in counties]
+            futures = {pool.submit(job, pair): pair for pair in counties}
             for fut in as_completed(futures):
                 if self._cancelled(cancel_check):
                     for pending in futures:
                         pending.cancel()
                     break
+                pair = futures[fut]
                 try:
                     fut.result()
-                except Exception:
-                    pass
+                except Exception as exc:
+                    st, co = pair
+                    msg = f"{st}/{co}: {type(exc).__name__}: {exc}"
+                    errors.append(msg)
+                    self._report(
+                        progress_cb,
+                        total,
+                        {
+                            "state": st,
+                            "county": co,
+                            "source": "recentlybooked",
+                            "label": f"recentlybooked · {st}/{co} · error: {exc}",
+                        },
+                    )
+        if errors and not records and not self._cancelled(cancel_check):
+            # Surface total failure so the GUI does not show a silent "done: 0".
+            raise RuntimeError(
+                "RecentlyBooked county scrape failed: " + "; ".join(errors[:5])
+            )
         return records

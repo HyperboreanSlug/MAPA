@@ -44,8 +44,14 @@ class RbFullScrapeWorkerMixin:
                         self.log_full(f"Full scrape purge ({sid}) skipped: {exc}")
                 known = db.existing_source_urls()
                 self._rb_full_last_loc = ""
+                self.log_full(
+                    f"{source_label}: {len(known):,} known URL(s) in DB "
+                    f"(will skip duplicates)."
+                )
 
                 def on_record(rec: Dict[str, Any], n: int) -> None:
+                    if getattr(self, "_closing", False):
+                        return
                     row = dict(rec)
                     err = _full_import_row(row, db, known, counters, import_lock)
                     if err:
@@ -72,13 +78,17 @@ class RbFullScrapeWorkerMixin:
                 _prog_t = [0.0]
 
                 def on_progress(count, _total=None, context=None):
+                    if getattr(self, "_closing", False):
+                        return
                     now = _time.time()
                     # Always refresh status when location changes; else throttle logs.
                     loc = ""
                     if isinstance(context, dict):
                         loc = str(context.get("label") or "")
                     force = bool(loc and loc != getattr(self, "_rb_full_last_loc", ""))
-                    if not force and now - _prog_t[0] < 2.0:
+                    # Errors / empty-catalog messages always surface immediately.
+                    is_err = "error" in loc.lower() or "0 counties" in loc.lower()
+                    if not force and not is_err and now - _prog_t[0] < 2.0:
                         return
                     _prog_t[0] = now
                     ctx = dict(context) if isinstance(context, dict) else None
@@ -137,14 +147,26 @@ class RbFullScrapeWorkerMixin:
             finally:
                 db.close()
 
+            cancelled = bool(getattr(self, "rb_cancel", False))
+            fetched = len(getattr(self, "_rb_full_all", []) or [])
+            verb = "cancelled" if cancelled else "done"
             msg = (
-                f"{source_label} full scrape done: "
-                f"{len(self._rb_full_records)}/{len(self._rb_full_all)} shown, "
+                f"{source_label} full scrape {verb}: "
+                f"{len(self._rb_full_records)}/{fetched} shown, "
                 f"+{counters['imported']} imported, {counters['skipped']} skipped, "
                 f"{counters['rejected']} no-photo dropped ({workers} threads)."
             )
             if scrape_warning:
                 msg += f" · interrupted: {scrape_warning}"
+            if not cancelled and not scrape_warning and fetched == 0:
+                msg += (
+                    " · no new records (catalog empty, all known, or host blocked). "
+                    "Check activity log for county/list errors."
+                )
+                self.log_full(
+                    f"{source_label}: finished with 0 fetched records — "
+                    "not a silent hang; see earlier log lines for catalog/list errors."
+                )
             self.log_full(msg)
             self.after(0, lambda: self.rb_full_status.configure(text=msg))
             self.after(0, self._refresh_db_status)
@@ -154,3 +176,6 @@ class RbFullScrapeWorkerMixin:
                 0,
                 lambda: self.rb_full_status.configure(text=f"Failed: {e}"),
             )
+        finally:
+            self._rb_full_busy = False
+            self.is_running = False

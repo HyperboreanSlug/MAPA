@@ -8,6 +8,15 @@ from .constants import _BN_UNAVAILABLE_HINT
 
 class RbFullScrapeRunMixin:
     def _rb_full_start(self):
+        if getattr(self, "_rb_full_busy", False) or getattr(self, "is_running", False):
+            self.log_full("Full scrape already running — cancel it first or wait.")
+            try:
+                self.rb_full_status.configure(
+                    text="Already running — Cancel or wait for finish."
+                )
+            except Exception:
+                pass
+            return
         self.rb_cancel = False
         state = self.rb_state.get().strip()
         county = self.rb_county.get().strip()
@@ -30,6 +39,7 @@ class RbFullScrapeRunMixin:
             workers = 1
             self.log_full(_BN_UNAVAILABLE_HINT)
             self.rb_full_status.configure(text=_BN_UNAVAILABLE_HINT)
+            return
         self.app_settings["rb_delay"] = delay
         self.app_settings["rb_threads"] = workers
         try:
@@ -51,6 +61,8 @@ class RbFullScrapeRunMixin:
 
         self._rb_full_all = []
         self._rb_full_records = []
+        self._rb_full_busy = True
+        self.is_running = True
         self.rb_full_tree.delete(*self.rb_full_tree.get_children())
         self.rb_full_sidebar.clear("Scraping…")
         self.rb_full_status.configure(

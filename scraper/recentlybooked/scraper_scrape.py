@@ -129,10 +129,24 @@ class RecentlyBookedScrapeMixin:
     ) -> List[Dict[str, Any]]:
         known_urls = self._as_url_set(skip_existing_urls)
         workers = max(1, int(workers or 1))
-        counties = [
-            (state, county)
-            for county in discover_counties_for_state(self.client, state)
-        ]
+        try:
+            county_names = list(discover_counties_for_state(self.client, state))
+        except Exception as exc:
+            raise RuntimeError(
+                f"RecentlyBooked county list failed for {state!r}: {exc}"
+            ) from exc
+        counties = [(state, county) for county in county_names]
+        if not counties:
+            self._report(
+                progress_cb,
+                0,
+                {
+                    "state": state,
+                    "source": "recentlybooked",
+                    "label": f"recentlybooked · {state} · 0 counties found",
+                },
+            )
+            return []
         if workers == 1:
             return self._scrape_counties_serial(
                 counties, max_pages=max_pages, known_urls=known_urls,
@@ -154,18 +168,30 @@ class RecentlyBookedScrapeMixin:
         known_urls = self._as_url_set(skip_existing_urls)
         workers = max(1, int(workers or 1))
         counties: List[tuple[str, str]] = []
+        catalog_err: Optional[str] = None
         try:
             counties = list(discover_counties_from_sitemap(self.client))
-        except Exception:
+        except Exception as exc:
+            catalog_err = f"sitemap: {exc}"
             counties = []
         if not counties:
-            for st in discover_states_from_homepage(self.client):
-                counties.extend(
-                    (st, county)
-                    for county in discover_counties_for_state(self.client, st)
+            try:
+                for st in discover_states_from_homepage(self.client):
+                    counties.extend(
+                        (st, county)
+                        for county in discover_counties_for_state(self.client, st)
+                    )
+            except Exception as exc:
+                catalog_err = (
+                    f"{catalog_err}; homepage: {exc}" if catalog_err else f"homepage: {exc}"
                 )
         if limit_counties:
             counties = counties[: int(limit_counties)]
+        if not counties:
+            raise RuntimeError(
+                "RecentlyBooked full scrape found 0 counties"
+                + (f" ({catalog_err})" if catalog_err else "")
+            )
         if workers == 1:
             return self._scrape_counties_serial(
                 counties, max_pages=max_pages, known_urls=known_urls,

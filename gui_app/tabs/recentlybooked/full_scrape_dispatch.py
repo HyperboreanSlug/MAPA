@@ -44,7 +44,10 @@ class RbFullScrapeDispatchMixin:
                 workers_per_source=max(1, workers),
                 skip_existing_urls=known,
                 with_photos=with_photos,
-                cancel_check=lambda: self.rb_cancel,
+                cancel_check=lambda: bool(
+                    getattr(self, "rb_cancel", False)
+                    or getattr(self, "_closing", False)
+                ),
                 record_cb=on_record,
                 progress_cb=on_progress,
             )
@@ -57,6 +60,11 @@ class RbFullScrapeDispatchMixin:
                 )
             for sid, n in (multi.by_source or {}).items():
                 self.log_full(f"Full scrape {sid}: {n} callback(s).")
+            if not (multi.by_source or multi.errors):
+                self.log_full(
+                    "Full scrape multi-host: no work completed and no errors "
+                    "reported (catalog may be empty)."
+                )
         elif source_id == "bustednewspaper":
             from scraper.bustednewspaper import BustedNewspaperScraper
 
@@ -65,7 +73,10 @@ class RbFullScrapeDispatchMixin:
                 bn_kw = dict(
                     with_photos=with_photos,
                     skip_existing_urls=known,
-                    cancel_check=lambda: self.rb_cancel,
+                    cancel_check=lambda: bool(
+                        getattr(self, "rb_cancel", False)
+                        or getattr(self, "_closing", False)
+                    ),
                     progress_cb=on_progress,
                     record_cb=on_record,
                 )
@@ -82,7 +93,10 @@ class RbFullScrapeDispatchMixin:
                 ms_kw = dict(
                     with_photos=with_photos,
                     skip_existing_urls=known,
-                    cancel_check=lambda: self.rb_cancel,
+                    cancel_check=lambda: bool(
+                        getattr(self, "rb_cancel", False)
+                        or getattr(self, "_closing", False)
+                    ),
                     progress_cb=on_progress,
                     record_cb=on_record,
                     workers=max(1, workers),
@@ -99,7 +113,10 @@ class RbFullScrapeDispatchMixin:
                     with_photos=with_photos,
                     with_html=with_html,
                     skip_existing_urls=known,
-                    cancel_check=lambda: self.rb_cancel,
+                    cancel_check=lambda: bool(
+                        getattr(self, "rb_cancel", False)
+                        or getattr(self, "_closing", False)
+                    ),
                     progress_cb=on_progress,
                     record_cb=on_record,
                     workers=workers,
