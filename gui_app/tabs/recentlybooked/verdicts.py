@@ -80,9 +80,13 @@ class RbVerdictsMixin:
             self.log(f"Marked {self._rb_name(record)} as {label}.")
         else:
             self.log(
-                f"Marked {self._rb_name(record)} as {label} "
-                "(not in DB yet — import to persist)."
+                f"Could not save confirmation for {self._rb_name(record)} "
+                f"as {label} — still in queue (import / fix DB id first)."
             )
+            # Never drop from Unverified unless the DB write stuck; otherwise the
+            # same person reappears on the next Analyze and looks "unconfirmed".
+            sidebar.show(record)
+            return
 
         if remove_from_list and related:
             # Remove highest index first; keep a neighbor for next selection.

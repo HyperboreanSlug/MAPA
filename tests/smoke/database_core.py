@@ -225,6 +225,49 @@ class DatabaseCoreTests(unittest.TestCase):
         self.assertIn("Theft", charges)
         self.assertEqual(row.get("race"), "White")
 
+    def test_dedupe_preserves_ethnicity_review_from_loser(self):
+        """Confirmation on a deleted twin must land on the keeper."""
+        from scraper.database.dedupe_merge_fields import DedupeMergeFieldsMixin
+        from scraper.searcher import ethnicity_review_verdict
+
+        keep = {
+            "id": 1,
+            "flags": None,
+            "state": "TX",
+            "charge_description": "Theft",
+            "source_url": "keep:1",
+        }
+        loser = {
+            "id": 2,
+            "flags": (
+                '{"ethnicity_review": "incorrect", '
+                '"ethnicity_reviewed_at": "2026-01-01T00:00:00+00:00"}'
+            ),
+            "state": "FL",
+            "charge_description": "Burglary",
+            "source_url": "loser:2",
+        }
+        updates = DedupeMergeFieldsMixin.merge_duplicate_members(keep, [loser])
+        self.assertIn("flags", updates)
+        self.assertEqual(
+            ethnicity_review_verdict({"flags": updates["flags"]}), "incorrect"
+        )
+        # Keep's own review still wins when both sides are set.
+        keep2 = {
+            "id": 3,
+            "flags": '{"ethnicity_review": "correct"}',
+            "state": "TX",
+        }
+        loser2 = {
+            "id": 4,
+            "flags": '{"ethnicity_review": "incorrect"}',
+            "state": "FL",
+        }
+        updates2 = DedupeMergeFieldsMixin.merge_duplicate_members(keep2, [loser2])
+        self.assertEqual(
+            ethnicity_review_verdict({"flags": updates2["flags"]}), "correct"
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

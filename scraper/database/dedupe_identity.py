@@ -177,8 +177,10 @@ class DedupeIdentityMixin:
         from scraper.searcher import ethnicity_review_verdict
 
         score = 0
+        # Prefer a confirmed row over a photo-only twin so review is not deleted
+        # (photo is still absorbed via field merge when the confirmed row wins).
         if ethnicity_review_verdict(row):
-            score += 100
+            score += 250
         if str(row.get("likely_ethnicity") or "").strip():
             score += 50
         from scraper.mugshot_ethnicity.photo_quality import record_has_real_photo

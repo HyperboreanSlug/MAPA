@@ -160,25 +160,23 @@ class RbMisclassifyMixin:
                     break
 
     def _rb_mc_set_actual_race(self, record: Dict[str, Any], actual: str) -> None:
+        from gui_app.shared.record_sidebar_flags import verdict_for_actual_vs_stated
+        from gui_app.shared.verdict_persist import persist_ethnicity_verdict
+
         actual = (actual or "").strip() or "Unknown"
         record["likely_ethnicity"] = actual
+        # Actual-race choice confirms classification so they leave Unverified.
+        verdict = verdict_for_actual_vs_stated(record.get("race"), actual)
+        ok, _flags, err = persist_ethnicity_verdict(
+            self.db_path,
+            record,
+            verdict,
+            extra_fields={"likely_ethnicity": actual},
+        )
         flags_json = merge_race_manual_flags(record.get("flags"))
         record["flags"] = flags_json
         rid = record.get("id")
         source_url = str(record.get("source_url") or "").strip()
-        for existing in self._rb_mc_records:
-            same_id = record.get("id") and existing.get("id") == record.get("id")
-            same_url = source_url and existing.get("source_url") == source_url
-            if same_id or same_url or existing is record:
-                existing["likely_ethnicity"] = actual
-                existing["flags"] = flags_json
-                iid = tree_iid_for_record(self.rb_mc_tree, existing)
-                if iid is not None:
-                    vals = list(self.rb_mc_tree.item(iid, "values"))
-                    if len(vals) >= 3:
-                        vals[2] = actual
-                        self.rb_mc_tree.item(iid, values=vals)
-                break
         if rid is None and source_url:
             db = Database(self.db_path)
             try:
@@ -197,11 +195,38 @@ class RbMisclassifyMixin:
                     int(rid),
                     {"likely_ethnicity": actual, "flags": flags_json},
                 )
-                self.log(f"RB misclass actual race set: {actual}")
             except Exception as exc:
                 self.log(f"Could not save actual race: {exc}")
-        else:
-            self.log(f"RB misclass actual race set (not in DB): {actual}")
+                return
+        want = self._rb_mc_review_query()
+        if ok and want == "unreviewed":
+            self._rb_apply_verdict(
+                record,
+                verdict,
+                tree=self.rb_mc_tree,
+                records=self._rb_mc_records,
+                sidebar=self.rb_mc_sidebar,
+                remove_from_list=True,
+            )
+            self.log(f"RB misclass actual race set: {actual} (confirmed {verdict})")
+            return
+        for existing in self._rb_mc_records:
+            same_id = record.get("id") and existing.get("id") == record.get("id")
+            same_url = source_url and existing.get("source_url") == source_url
+            if same_id or same_url or existing is record:
+                existing["likely_ethnicity"] = actual
+                existing["flags"] = flags_json
+                iid = tree_iid_for_record(self.rb_mc_tree, existing)
+                if iid is not None:
+                    vals = list(self.rb_mc_tree.item(iid, "values"))
+                    if len(vals) >= 3:
+                        vals[2] = actual
+                    if len(vals) >= 5:
+                        vals[4] = verification_label(existing)
+                    self.rb_mc_tree.item(iid, values=vals)
+                break
+        conf = f" confirmed {verdict}" if ok else f" (confirm failed: {err})"
+        self.log(f"RB misclass actual race set: {actual}{conf}")
 
     def _rb_mc_race_filter(self) -> Optional[str]:
         race = (

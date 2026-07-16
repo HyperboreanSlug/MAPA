@@ -9,6 +9,7 @@ from gui_app.shared.record_sidebar_flags import (
     merge_ethnicity_review_flags,
     merge_race_manual_flags,
     race_manual_override,
+    verdict_for_actual_vs_stated,
 )
 from gui_app.shared.record_sidebar_show import RecordSidebarShowMixin
 from gui_app.shared.record_sidebar_ui import (
@@ -53,6 +54,7 @@ __all__ = [
     "merge_ethnicity_review_flags",
     "merge_race_manual_flags",
     "race_manual_override",
+    "verdict_for_actual_vs_stated",
     "_DETAIL_KEYS",
     "_first",
 ]

@@ -113,18 +113,9 @@ class DedupeMergeFieldsMixin:
                 merged_ids.append(int(r["id"]))
             except (KeyError, TypeError, ValueError):
                 pass
-        flag_out: Dict[str, Any] = {}
-        raw_flags = keep.get("flags")
-        if raw_flags:
-            try:
-                if isinstance(raw_flags, dict):
-                    flag_out = dict(raw_flags)
-                else:
-                    flag_out = json.loads(str(raw_flags))
-                    if not isinstance(flag_out, dict):
-                        flag_out = {"tags": [str(raw_flags)]}
-            except Exception:
-                flag_out = {}
+        # Keep-first flag merge, then fill missing keys from losers so
+        # ethnicity_review / race_manual on a deleted twin is not dropped.
+        flag_out = cls._merge_flags_dicts(keep, losers)
         if merged_ids:
             flag_out["merged_from_ids"] = merged_ids
             flag_out["merged_listings"] = {
@@ -139,8 +130,53 @@ class DedupeMergeFieldsMixin:
                 )[:20],
                 "count": 1 + len(merged_ids),
             }
+        if flag_out:
             try:
-                updates["flags"] = json.dumps(flag_out, ensure_ascii=False, sort_keys=True)
+                updates["flags"] = json.dumps(
+                    flag_out, ensure_ascii=False, sort_keys=True
+                )
             except Exception:
                 pass
         return updates
+
+    @staticmethod
+    def _parse_flags_dict(raw: Any) -> Dict[str, Any]:
+        if isinstance(raw, dict):
+            return dict(raw)
+        if isinstance(raw, str) and raw.strip():
+            try:
+                parsed = json.loads(raw)
+                if isinstance(parsed, dict):
+                    return dict(parsed)
+                return {"tags": [str(raw)]}
+            except Exception:
+                return {"notes": raw}
+        return {}
+
+    @classmethod
+    def _merge_flags_dicts(
+        cls, keep: Dict[str, Any], losers: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """Union flags; keep wins on conflicts; never drop ethnicity_review."""
+        skip = {"merged_from_ids", "merged_listings"}
+        out = cls._parse_flags_dict(keep.get("flags"))
+        for r in losers:
+            other = cls._parse_flags_dict(r.get("flags"))
+            for key, val in other.items():
+                if key in skip:
+                    continue
+                cur = out.get(key)
+                if cur is None or cur == "" or cur is False:
+                    out[key] = val
+        # Explicit safeguard: confirmation verdict from any sibling.
+        if not str(out.get("ethnicity_review") or "").strip():
+            for r in [keep, *losers]:
+                other = cls._parse_flags_dict(r.get("flags"))
+                verdict = str(other.get("ethnicity_review") or "").strip().lower()
+                if verdict in ("correct", "incorrect"):
+                    out["ethnicity_review"] = verdict
+                    at = other.get("ethnicity_reviewed_at")
+                    if at:
+                        out["ethnicity_reviewed_at"] = at
+                    break
+        return out

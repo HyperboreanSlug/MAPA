@@ -44,6 +44,29 @@ def merge_race_manual_flags(raw_flags: Any) -> str:
     return json.dumps(flags, ensure_ascii=False, sort_keys=True)
 
 
+def verdict_for_actual_vs_stated(stated_race: Any, actual: Any) -> str:
+    """Map actual-race choice → ethnicity_review verdict (correct/incorrect)."""
+    try:
+        from gui_app.tabs.browse.misclassify_constants import (
+            actual_from_stated_race,
+            bucket_actual_race,
+        )
+        from scraper.searcher import format_race_label
+    except Exception:
+        return "incorrect"
+    actual_s = " ".join(str(actual or "").split()).strip() or "Unknown"
+    stated_s = str(stated_race or "").strip()
+    if actual_from_stated_race(stated_s) == actual_s:
+        return "correct"
+    stated_bucket = bucket_actual_race(format_race_label(stated_s)) or bucket_actual_race(
+        stated_s
+    )
+    actual_bucket = bucket_actual_race(actual_s)
+    if stated_bucket and actual_bucket and stated_bucket == actual_bucket:
+        return "correct"
+    return "incorrect"
+
+
 def race_manual_override(record_or_flags: Any) -> bool:
     """True when arrests.flags records a manual actual-race override."""
     import json
