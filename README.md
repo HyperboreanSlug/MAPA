@@ -43,6 +43,14 @@ python -m scraper recentlybooked import-mirror "I:\scrape\recentlybooked"
 python -m scraper recentlybooked import-mirror "I:\scrape\recentlybooked" --state az --county apache
 python -m scraper recentlybooked import-mirror "I:\scrape\recentlybooked" --limit 500
 
+# Public database (GitHub Releases) — download on any install
+# Settings → Public database, or startup auto-check when enabled.
+# Upload is gated to the publisher machine only:
+#   python scripts/enable_db_publish.py   # once, this machine only
+#   python scripts/publish_database_release.py --use-gh
+# Never copy data/db_publish.allow to other machines.
+# Client downloads preserve local ethnicity_review / race_manual flags.
+
 # DeepFace (after requirements-vision.txt)
 python -m scraper mugshot setup
 python -m scraper mugshot scan --source-system recentlybooked

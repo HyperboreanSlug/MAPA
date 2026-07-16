@@ -26,6 +26,9 @@
 | Open-data Socrata/CSV | `scraper/scrapers/`, `scraper/config*.py` |
 | Face models / scan pipeline | `scraper/mugshot_ethnicity/` |
 | CLI | `scraper/cli.py` + `scraper/cli_*.py` |
+| Public DB sync (download) | `scraper/db_sync*.py`, `gui_app/shell_sync*.py` |
+| Public DB publish (upload) | `scraper/db_publish_*.py`, `scripts/publish_database_release.py` (gated by `data/db_publish.allow`) |
+| Local classification preserve | `scraper/db_sync_preserve.py` |
 | Tests | `tests/test_smoke.py` → `tests/smoke/` |
 
 **Token hygiene:** Load one ≤200-line module at a time. Use package `__init__.py` only to see public exports.

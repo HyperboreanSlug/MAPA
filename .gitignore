@@ -20,3 +20,15 @@ archives/
 downloads/
 *.csv
 !tests/fixtures/*.csv
+*.log
+auto_update.log
+# Publisher-only gate (never ship to other machines / releases)
+data/db_publish.allow
+# Release packaging artifacts (public DB assets go to GitHub Releases)
+releases/*.db
+releases/*.db.zip
+releases/arrests.photos.*.zip
+releases/arrests.delta.*.zip
+releases/*_scrubbed.db
+releases/publish_state/
+!releases/MANIFEST.json

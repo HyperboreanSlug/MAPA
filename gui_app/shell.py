@@ -9,6 +9,7 @@ import customtkinter as ctk
 from gui_app.lazy_tabs import LazyTabHost
 from gui_app.shell_health import SourceHealthMixin
 from gui_app.shell_log import ChannelLogMixin
+from gui_app.shell_sync import ShellSyncMixin
 from gui_app.theme import C, FONT_SM, FONT_TITLE, style_treeview
 from gui_app.tabs.browse import BrowseTabMixin
 from gui_app.tabs.browse.deepface_reports import DeepfaceReportsTabMixin
@@ -22,10 +23,12 @@ from gui_app.tabs.scrape import ScrapeTabMixin
 from gui_app.tabs.settings import SettingsTabMixin
 from scraper.app_settings import load_settings, save_settings
 from scraper.database import Database, backup_database_file
+from scraper.paths import sanitize_db_path
 
 
 class ArrestArchiverApp(
     ChannelLogMixin,
+    ShellSyncMixin,
     SourceHealthMixin,
     BrowseTabMixin,
     MisclassifyTabMixin,
@@ -47,7 +50,8 @@ class ArrestArchiverApp(
         self.geometry("1320x860")
         self.minsize(940, 650)
         self.app_settings = load_settings()
-        self.db_path = str(self.app_settings["db_path"])
+        self.db_path = sanitize_db_path(self.app_settings.get("db_path"))
+        self.app_settings["db_path"] = self.db_path
         self.db = Database(self.db_path)
         self._init_channel_log()
         self.is_running = False
@@ -65,6 +69,11 @@ class ArrestArchiverApp(
             font=FONT_TITLE,
             text_color=C["text"],
         ).pack(side="left", padx=18, pady=12)
+        # Sync progress sits left of the DB status (non-blocking).
+        try:
+            self._build_header_sync_indicator(header)
+        except Exception:
+            pass
         self.db_status = ctk.CTkLabel(
             header, text="", font=FONT_SM, text_color=C["muted"]
         )
@@ -95,6 +104,8 @@ class ArrestArchiverApp(
         self.after(250, self._drain_log)
         # Ping mugshot hosts in the background so Live Feed can show real status.
         self.after(100, lambda: self._start_source_health_probe(force=False))
+        # Public DB download/update (and publisher auto-upload when allowed).
+        self.after(400, self._maybe_prompt_or_sync_database)
 
     def _refresh_db_status(self) -> None:
         try:
@@ -103,9 +114,27 @@ class ArrestArchiverApp(
         except Exception as exc:
             self.db_status.configure(text=f"Database unavailable: {exc}")
 
+    def _refresh_header_db_path(self) -> None:
+        self._refresh_db_status()
+
+    def _after_db_data_changed(self) -> None:
+        """Reopen SQLite handle after a background public-DB install."""
+        try:
+            self.db.close()
+        except Exception:
+            pass
+        try:
+            self.db = Database(self.db_path)
+        except Exception as exc:
+            try:
+                self.log(f"Database reopen after sync failed: {exc}")
+            except Exception:
+                pass
+        self._refresh_db_status()
+
     def reopen_database(self, path: str) -> None:
         self.db.close()
-        self.db_path = str(Path(path))
+        self.db_path = sanitize_db_path(path)
         self.db = Database(self.db_path)
         self.app_settings["db_path"] = self.db_path
         save_settings(self.app_settings)

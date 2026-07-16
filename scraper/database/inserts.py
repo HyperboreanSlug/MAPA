@@ -94,6 +94,13 @@ class InsertMixin:
                     if key in rec:
                         original[key] = rec[key]
             imported = self.insert_arrests_batch([rec for _, rec in kept_pairs])
+        if imported:
+            try:
+                from scraper.db_publish_pending import add_pending_listings
+
+                add_pending_listings(int(imported))
+            except Exception:
+                pass
         return {
             "imported": imported,
             "skipped": skipped,

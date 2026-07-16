@@ -34,6 +34,17 @@ DEFAULTS: Dict[str, Any] = {
     "deepface_scan_faces": "black,indian,asian",
     "deepface_scan_force_rescan": False,
     "deepface_scan_source": "",  # e.g. recentlybooked or blank=all
+    # App code auto-update from GitHub (git fetch + ff-only pull on open)
+    "auto_update_enabled": True,
+    # Public database sync from GitHub Releases (download on all machines;
+    # upload only when data/db_publish.allow exists on this machine)
+    "db_sync_enabled": True,
+    "db_sync_prompted": False,
+    "db_sync_on_startup": True,
+    "db_sync_repo": "HyperboreanSlug/MAPA",
+    "db_sync_tag": "database-latest",
+    "db_auto_publish_enabled": True,
+    "db_publish_change_threshold": 2500,
 }
 
 
@@ -76,6 +87,24 @@ def normalize_settings(s: Dict[str, Any]) -> Dict[str, Any]:
     out["deepface_auto_setup"] = bool(out.get("deepface_auto_setup", True))
     out["deepface_auto_warm"] = bool(out.get("deepface_auto_warm", True))
     out["deepface_scan_force_rescan"] = bool(out.get("deepface_scan_force_rescan", False))
+    out["auto_update_enabled"] = bool(out.get("auto_update_enabled", True))
+    out["db_sync_enabled"] = bool(out.get("db_sync_enabled", True))
+    out["db_sync_prompted"] = bool(out.get("db_sync_prompted", False))
+    out["db_sync_on_startup"] = bool(out.get("db_sync_on_startup", True))
+    out["db_auto_publish_enabled"] = bool(out.get("db_auto_publish_enabled", True))
+    out["db_sync_repo"] = (
+        str(out.get("db_sync_repo") or DEFAULTS["db_sync_repo"]).strip()
+        or DEFAULTS["db_sync_repo"]
+    )
+    out["db_sync_tag"] = (
+        str(out.get("db_sync_tag") or DEFAULTS["db_sync_tag"]).strip()
+        or DEFAULTS["db_sync_tag"]
+    )
+    try:
+        thr = int(out.get("db_publish_change_threshold", 2500))
+    except (TypeError, ValueError):
+        thr = 2500
+    out["db_publish_change_threshold"] = max(1, min(thr, 1_000_000))
     det = str(out.get("deepface_detector") or "retinaface").strip().lower()
     allowed_det = {
         "retinaface", "opencv", "ssd", "mtcnn", "yunet", "mediapipe", "centerface",

@@ -51,6 +51,8 @@ scraper/
 | Browse / stated race | `gui_app/tabs/browse/misclassify*.py` |
 | Live feed / multi-host | `gui_app/tabs/recentlybooked/`, `scraper/mugshot_sources/` |
 | Offline HTTrack import | `scraper/recentlybooked/import_mirror.py` |
+| Public DB download/upload | `scraper/db_sync*`, `scraper/db_publish_*`, `gui_app/shell_sync*` |
+| Classification preserve on sync | `scraper/db_sync_preserve.py` |
 | Full scrape load-balance | `mugshot_sources/partition.py`, `balanced.py`, `geo.py` |
 | Surname misclass | `scraper/searcher*.py`, `ethnic_names*.py` |
 | SQLite / dedupe | `scraper/database/` |
