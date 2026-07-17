@@ -433,7 +433,7 @@ tests/                         # Smoke suite split under tests/smoke/
 
 | Change | Module(s) |
 |--------|-----------|
-| Race banner on export card | `export_card_render.py` |
+| Race banner on export card | `export_card_render.py` (premium layout: foil name, Reported As, crime panel, location/date footer) |
 | Placeholder mugshot detection | `photo_quality_*.py` |
 | Live Feed source checkboxes | `recentlybooked/live_sources.py` |
 | Multi-host county split | `mugshot_sources/partition.py`, `balanced.py` |
