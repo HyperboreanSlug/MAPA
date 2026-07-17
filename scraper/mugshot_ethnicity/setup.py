@@ -14,6 +14,12 @@ Hardening:
 from __future__ import annotations
 
 from scraper.mugshot_ethnicity.setup_common import configure_tf_keras_env
+from scraper.mugshot_ethnicity.setup_fairface import (
+    ensure_fairface,
+    ensure_fairface_background,
+    fairface_available,
+    fairface_runtime_ok,
+)
 from scraper.mugshot_ethnicity.setup_install import (
     ensure_deepface,
     ensure_deepface_background,
@@ -37,6 +43,10 @@ __all__ = [
     "download_selected_weights",
     "ensure_deepface",
     "ensure_deepface_background",
+    "ensure_fairface",
+    "ensure_fairface_background",
+    "fairface_available",
+    "fairface_runtime_ok",
     "invalidate_runtime_cache",
     "warm_deepface_models",
 ]

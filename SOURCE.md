@@ -373,7 +373,8 @@ tests/                         # Smoke suite split under tests/smoke/
 | `verify.py` | Re-export verify API |
 | `verify_record.py` | Single-record face+name verify |
 | `verify_batch.py` | Batch over misclass list |
-| `setup.py` | Re-export setup API |
+| `setup.py` | Re-export setup API (FairFace + DeepFace) |
+| `setup_fairface.py` | `ensure_fairface` — auto path/pip + race-7 weights (primary) |
 | `setup_common.py` | Shared logging / env |
 | `setup_runtime.py` | DeepFace import probes |
 | `setup_pip.py` | Pip install helpers |

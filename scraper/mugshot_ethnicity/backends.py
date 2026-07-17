@@ -65,12 +65,22 @@ def create_backend(
     ``mock`` → tests only.
     """
     from scraper.mugshot_ethnicity.setup import ensure_deepface
+    from scraper.mugshot_ethnicity.setup_fairface import ensure_fairface
 
     key = (name or "auto").strip().lower()
     if key == "mock":
         return MockBackend()
 
     if key in ("auto", "fairface"):
+        if auto_install:
+            try:
+                ensure_fairface(auto_install=True, warm=True, log=log)
+            except Exception as e:
+                if log:
+                    try:
+                        log(f"FairFace auto-setup: {e}")
+                    except Exception:
+                        pass
         fb = FairFaceBackend(log=log)
         if fb.is_available():
             try:
@@ -81,7 +91,7 @@ def create_backend(
                 if key == "fairface":
                     raise RuntimeError(
                         "FairFace (face-race) setup failed.\n"
-                        "  cd face-race && pip install -e .\n"
+                        "  Auto-setup could not finish — see log.\n"
                         f"Detail: {e}"
                     ) from e
                 if log:
@@ -91,10 +101,10 @@ def create_backend(
                         pass
         elif key == "fairface":
             raise RuntimeError(
-                "FairFace backend not available.\n"
-                "Install the standalone package:\n"
+                "FairFace backend not available after auto-setup.\n"
+                "Ensure sibling face-race exists and torch installs, or:\n"
                 "  cd face-race && pip install -e .\n"
-                "Weights download on first score into ~/.face_race/weights/"
+                "Weights: ~/.face_race/weights/"
             )
 
     if key in ("auto", "deepface"):

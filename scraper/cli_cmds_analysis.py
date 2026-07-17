@@ -77,19 +77,31 @@ def cmd_mugshot(args: argparse.Namespace) -> None:
     db_path = args.database or "data/arrests.db"
 
     if action == "setup":
-        from .mugshot_ethnicity.setup import ensure_deepface, download_selected_weights
+        from .mugshot_ethnicity.setup import (
+            download_selected_weights,
+            ensure_deepface,
+            ensure_fairface,
+        )
 
         def _log(m: str) -> None:
             print(m)
 
-        ok = ensure_deepface(auto_install=True, warm=False, log=_log)
-        if ok:
+        ff_ok = ensure_fairface(auto_install=True, warm=True, log=_log)
+        df_ok = ensure_deepface(auto_install=True, warm=False, log=_log)
+        if df_ok:
             download_selected_weights(
                 ["Race"], detector_backend=args.detector or "retinaface", log=_log
             )
-            print("DeepFace setup OK")
+        if ff_ok or df_ok:
+            print(
+                f"Vision setup OK (FairFace={'yes' if ff_ok else 'no'}, "
+                f"DeepFace={'yes' if df_ok else 'no'})"
+            )
         else:
-            print("DeepFace setup failed — pip install -r requirements-vision.txt")
+            print(
+                "Vision setup failed — install face-race (FairFace) and/or "
+                "pip install -r requirements-vision.txt"
+            )
         return
 
     if action == "scan":

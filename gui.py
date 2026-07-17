@@ -82,6 +82,7 @@ _ensure_dependencies()
 
 
 def _start_deepface_setup_background(app_settings: Optional[dict] = None) -> None:
+    """Install FairFace (primary) then DeepFace fallback in a daemon thread."""
     sett = app_settings or {}
     if not bool(sett.get("deepface_auto_setup", True)):
         return
@@ -108,11 +109,15 @@ def _start_deepface_setup_background(app_settings: Optional[dict] = None) -> Non
             import time
 
             time.sleep(3)
+            from scraper.mugshot_ethnicity.setup_fairface import ensure_fairface
             from scraper.mugshot_ethnicity.setup import (
                 deepface_available,
                 download_selected_weights,
                 ensure_deepface,
             )
+
+            ff_ok = ensure_fairface(auto_install=True, warm=warm, log=_log)
+            _log(f"FairFace auto-setup: {'OK' if ff_ok else 'failed / incomplete'}")
 
             ok = ensure_deepface(auto_install=True, warm=False, log=_log)
             if ok and warm and deepface_available():
@@ -122,17 +127,24 @@ def _start_deepface_setup_background(app_settings: Optional[dict] = None) -> Non
                     log=_log,
                 )
         except Exception as e:
-            _log(f"Background DeepFace setup error: {e}")
+            _log(f"Background vision setup error: {e}")
 
     try:
         import threading
 
-        threading.Thread(target=_run, name="deepface-setup", daemon=True).start()
+        threading.Thread(target=_run, name="vision-setup", daemon=True).start()
     except Exception:
         pass
 
 
 def main() -> None:
+    # GitHub auto-update before loading the full GUI (may exit + relaunch)
+    try:
+        from gui_app.auto_update import maybe_update_and_relaunch
+
+        maybe_update_and_relaunch(_ROOT, app_title="Arrest Public Archiver")
+    except Exception:
+        pass
     try:
         from gui_app.shell import ArrestArchiverApp
     except Exception as e:

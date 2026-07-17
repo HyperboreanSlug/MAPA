@@ -2,9 +2,12 @@
 
 Uses **local open-source** face models — nothing is sent to a cloud API.
 
-Primary backend: `DeepFace <https://github.com/serengil/deepface>`_ (race
-attribute model). Install once::
+Primary backend: **FairFace** via the standalone ``face-race`` package
+(auto-setup on app launch / scan). DeepFace is legacy fallback::
 
+    # primary (auto)
+    # face-race sibling + torch — ensure_fairface()
+    # legacy:
     pip install -r requirements-vision.txt
 
 Two workflows:
@@ -34,6 +37,10 @@ from scraper.mugshot_ethnicity.setup import (
     download_selected_weights,
     ensure_deepface,
     ensure_deepface_background,
+    ensure_fairface,
+    ensure_fairface_background,
+    fairface_available,
+    fairface_runtime_ok,
     warm_deepface_models,
 )
 
@@ -52,6 +59,10 @@ __all__ = [
     "download_selected_weights",
     "ensure_deepface",
     "ensure_deepface_background",
+    "ensure_fairface",
+    "ensure_fairface_background",
+    "fairface_available",
+    "fairface_runtime_ok",
     "warm_deepface_models",
     "verify_record",
     "verify_misclassifications",
