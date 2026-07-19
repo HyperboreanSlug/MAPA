@@ -44,6 +44,18 @@ class QueryStatsMixin:
         ).fetchall()
         return [str(r["eth"]) for r in rows if r and r["eth"]]
 
+    def distinct_source_systems(self) -> List[str]:
+        """Source ids for Browse filter (recentlybooked, mugshotscom, DOC, …)."""
+        rows = self._conn.execute(
+            """
+            SELECT DISTINCT TRIM(source_system) AS src
+            FROM arrests
+            WHERE source_system IS NOT NULL AND TRIM(source_system) != ''
+            ORDER BY src COLLATE NOCASE
+            """
+        ).fetchall()
+        return [str(r["src"]) for r in rows if r and r["src"]]
+
     def get_charge_category_distribution(self) -> List[Dict[str, Any]]:
         from scraper.charge_classifications import category_label
 

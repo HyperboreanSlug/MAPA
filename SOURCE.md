@@ -14,7 +14,8 @@
 | Need | Open first |
 |------|------------|
 | GUI entry / window | `gui.py` → `gui_app/shell.py` |
-| Browse (filters, review) | `gui_app/tabs/browse/` |
+| Browse (filters, review) | `gui_app/tabs/browse/` — source filter + last N days; order by arrest/booking date so website hosts (RecentlyBooked) appear |
+
 | Live feed / full scrape / multi-host | `gui_app/tabs/recentlybooked/` + `scraper/mugshot_sources/` |
 | DeepFace scan UI | `gui_app/tabs/deepface/` |
 | DeepFace browse review | `gui_app/tabs/browse/deepface_reports/` |
@@ -113,7 +114,7 @@ tests/                         # Smoke suite split under tests/smoke/
 | `misclassify_constants.py` | Column labels + verification filter maps |
 | `misclassify_suspect.py` | Filter rows to surname-vs-race misclass suspects |
 | `misclassify_verdict.py` | Persist verification; correct → actual=stated race |
-| `misclassify_build.py` | Filters UI (stated race, actual race, confirmation, last N days/weeks) |
+| `misclassify_build.py` | Filters UI (stated race, actual race, confirmation, **source**, last N days/weeks) |
 | `misclassify_actions.py` | Refresh, verification save, actual-race save |
 | `misclassify_export.py` | CSV export, row drop after filter change |
 | `search.py` | Name/state/race/charge + last N days/weeks search UI |
@@ -493,6 +494,7 @@ https://www.dac.nc.gov/contacts/public-records-request/public-records-online
 | Black+European not flagged | `searcher_race.py` (`_is_compatible`) |
 | Stated race filter (browse) | `browse/misclassify_build.py` + `queries_search.py` |
 | Last N days/weeks filter | `date_window.py` + Browse/Search UI + `search_records(since_date=…)` |
+| RB dates for Browse | `recentlybooked/parse_util.normalize_booking_datetime` + `scripts/backfill_rb_iso_dates.py` — ISO arrest/booking so website rows sort into Browse |
 | DeepFace default faces/recorded | `deepface/scan_build_form.py`, settings |
 | Add a new mugshot host | `mugshot_sources/registry.py` + new package like `mugshotscom/` + `geo.py` dispatch |
 | New open-data city | `config_sources.py` + field map |

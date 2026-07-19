@@ -6,7 +6,13 @@ from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup, Tag
 
-from .parse_util import BASE_URL, _detail_match, _name_parts, _text
+from .parse_util import (
+    BASE_URL,
+    _detail_match,
+    _name_parts,
+    _text,
+    apply_booking_dates,
+)
 
 
 def _card_href(card: Tag) -> Optional[str]:
@@ -49,6 +55,7 @@ def _record_from_card(card: Tag, base_url: str) -> Optional[Dict[str, Any]]:
     booking_date = _text(card.select_one(".mugshot-date"))
     if booking_date:
         record["booking_date"] = booking_date
+        apply_booking_dates(record)
     location = _text(card.select_one(".mugshot-location"))
     if location:
         record["location"] = location

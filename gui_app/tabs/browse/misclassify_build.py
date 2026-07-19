@@ -67,6 +67,15 @@ class MisclassifyBuildMixin:
             width=170,
             command=self._browse_filter_changed,
         )
+        # Source (RecentlyBooked / Mugshots.com / DOC bulk / …)
+        src_values = ["All"] + self._browse_source_choices()
+        self.browse_source_filter = ctk.CTkComboBox(
+            host,
+            values=src_values,
+            width=150,
+            command=self._browse_filter_changed,
+        )
+        self.browse_source_filter.set("All")
         # Last N days / weeks (empty amount = any time)
         self.browse_window_amount = ctk.CTkEntry(
             host, width=52, placeholder_text="any"
@@ -115,6 +124,8 @@ class MisclassifyBuildMixin:
             self.browse_actual_race_filter,
             _lbl("Confirmation"),
             self.browse_review,
+            _lbl("Source"),
+            self.browse_source_filter,
             _lbl("Last"),
             self.browse_window_amount,
             self.browse_window_unit,
@@ -162,6 +173,25 @@ class MisclassifyBuildMixin:
             return Database(self.db_path).distinct_race_labels()
         except Exception:
             return []
+
+    def _browse_source_choices(self) -> List[str]:
+        try:
+            db = Database(self.db_path)
+            try:
+                if hasattr(db, "distinct_source_systems"):
+                    return list(db.distinct_source_systems())
+            finally:
+                db.close()
+        except Exception:
+            pass
+        return [
+            "recentlybooked",
+            "mugshotscom",
+            "bustednewspaper",
+            "nc_dac",
+            "il_idoc",
+            "tx_tdcj",
+        ]
 
     def _browse_filter_changed(self, _choice: str = "") -> None:
         if getattr(self, "_browse_busy", False):

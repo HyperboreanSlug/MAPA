@@ -13,6 +13,7 @@ from .parse_util import (
     _detail_match,
     _name_parts,
     _text,
+    apply_booking_dates,
 )
 
 
@@ -135,4 +136,5 @@ def parse_detail(html: str, source_url: str) -> Dict[str, Any]:
     )
     if image and image.get("src"):
         record["photo_url"] = urljoin(source_url, str(image.get("src")))
+    apply_booking_dates(record)
     return record

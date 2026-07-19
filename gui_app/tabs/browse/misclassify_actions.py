@@ -66,11 +66,18 @@ class MisclassifyActionsMixin:
                     since = None
                     if hasattr(self, "_browse_since_date"):
                         since = self._browse_since_date()
+                    src = "All"
+                    if getattr(self, "browse_source_filter", None) is not None:
+                        try:
+                            src = (self.browse_source_filter.get() or "All").strip()
+                        except Exception:
+                            src = "All"
                     rows = db.search_records(
                         race=None if stated in ("All", "", None) else stated,
                         likely_ethnicity=likely_one,
                         likely_ethnicity_in=likely_in,
                         ethnicity_review=review_q,
+                        source_system=None if src in ("All", "", None) else src,
                         since_date=since,
                         limit=fetch_limit,
                     )

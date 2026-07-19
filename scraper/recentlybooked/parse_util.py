@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import re
-from typing import Dict, List, Optional
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
 from bs4 import Tag
@@ -54,6 +55,72 @@ def _text(tag: Optional[Tag]) -> Optional[str]:
         return None
     value = tag.get_text(" ", strip=True)
     return value or None
+
+
+# "July 6, 2026 8:50 PM" and similar card/detail stamps
+_HUMAN_DT_FMTS = (
+    "%B %d, %Y %I:%M %p",
+    "%B %d, %Y %H:%M",
+    "%B %d, %Y",
+    "%b %d, %Y %I:%M %p",
+    "%b %d, %Y %H:%M",
+    "%b %d, %Y",
+    "%m/%d/%Y %I:%M %p",
+    "%m/%d/%Y",
+    "%Y-%m-%d %H:%M:%S",
+    "%Y-%m-%d",
+)
+
+
+def normalize_booking_datetime(raw: Any) -> Dict[str, str]:
+    """Parse human RB dates into ISO ``booking_date`` / ``arrest_date``.
+
+    Browse orders by ``arrest_date``; RB historically stored only
+    ``July 6, 2026 8:50 PM`` in ``booking_date`` with empty ``arrest_date``,
+    so website rows never appeared in the top Browse page.
+    """
+    s = re.sub(r"\s+", " ", str(raw or "").strip())
+    if not s:
+        return {}
+    # Already ISO date (optional time / T)
+    m_iso = re.match(r"^(\d{4}-\d{2}-\d{2})(?:[T\s].*)?$", s)
+    if m_iso:
+        day = m_iso.group(1)
+        out = {"booking_date": day, "arrest_date": day}
+        tm = re.search(r"(?:T|\s)(\d{1,2}:\d{2})", s)
+        if tm:
+            out["arrest_time"] = tm.group(1)[:5]
+        return out
+    for fmt in _HUMAN_DT_FMTS:
+        try:
+            dt = datetime.strptime(s, fmt)
+        except ValueError:
+            continue
+        day = dt.strftime("%Y-%m-%d")
+        out = {"booking_date": day, "arrest_date": day}
+        if "%H" in fmt or "%I" in fmt:
+            out["arrest_time"] = dt.strftime("%H:%M")
+        return out
+    return {"booking_date": s}
+
+
+def apply_booking_dates(record: Dict[str, Any]) -> Dict[str, Any]:
+    """Normalize booking/arrest fields on a record dict in place."""
+    raw = record.get("booking_date") or record.get("arrest_date") or ""
+    parsed = normalize_booking_datetime(raw)
+    if not parsed:
+        return record
+    if parsed.get("booking_date"):
+        record["booking_date"] = parsed["booking_date"]
+    if parsed.get("arrest_date") and not str(record.get("arrest_date") or "").strip():
+        record["arrest_date"] = parsed["arrest_date"]
+    elif parsed.get("arrest_date") and not re.match(
+        r"^\d{4}-\d{2}-\d{2}", str(record.get("arrest_date") or "")
+    ):
+        record["arrest_date"] = parsed["arrest_date"]
+    if parsed.get("arrest_time") and not record.get("arrest_time"):
+        record["arrest_time"] = parsed["arrest_time"]
+    return record
 
 
 def _detail_match(url: str) -> Optional[re.Match[str]]:

@@ -175,7 +175,14 @@ class QuerySearchMixin:
                 "AND flags LIKE '%ethnicity_review%'"
             )
 
-        order = " ORDER BY arrest_date DESC, last_name ASC"
+        # Prefer arrest_date, then booking_date (ISO), then newest id.
+        # Website sources (RecentlyBooked) often only fill booking_date.
+        order = (
+            " ORDER BY COALESCE("
+            "NULLIF(TRIM(arrest_date), ''), "
+            "NULLIF(TRIM(booking_date), '')"
+            ") DESC, id DESC, last_name ASC"
+        )
         if not review_active:
             if limit:
                 q += order + " LIMIT ? OFFSET ?"
