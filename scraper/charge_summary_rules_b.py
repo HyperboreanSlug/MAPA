@@ -12,6 +12,9 @@ _SUMMARY_RULES_B: List[Tuple[str, List[str]]] = [
         '\\bassault\\b', '\\bbatter(?:y|ing)\\b', '\\bstrangul', '\\bterroristic\\s+threat', '\\bthreat\\s+to\\s+(kill|injure)',
         '\\bmalicious\\s+wound', '\\bmayhem\\b', '\\bmenacing\\b', '\\bcommunicating\\s+threats',
         '\\breckless\\s+endanger', '\\bbodily\\s+harm',
+        # FL / jail shorthand: Touch Or Strike (simple battery)
+        '\\btouch\\s*(?:or|/|&)\\s*strike\\b',
+        '\\bstrike\\s*(?:or|/|&)\\s*touch\\b',
     ]),
     ('KIDNAPPING / FALSE IMPRISONMENT', [
         '\\bkidnap', '\\bfalse\\s+imprison', '\\bunlawful\\s+restraint', '\\bunl\\s+restraint',

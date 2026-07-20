@@ -115,6 +115,8 @@ _RULES: List[Tuple[str, List[str]]] = [
             r"\bmens?\s+rea.*assault", r"\bmayhem\b", r"\briot\b",
             r"\bresist(ing)?\s+(arrest|officer)", r"\baffray\b",
             r"\bintimidation\b", r"\bmalicious\s+wound",
+            r"\btouch\s*(?:or|/|&)\s*strike\b",
+            r"\bstrike\s*(?:or|/|&)\s*touch\b",
         ],
     ),
     (

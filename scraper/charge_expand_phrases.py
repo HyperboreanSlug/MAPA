@@ -62,6 +62,8 @@ EXPAND_PHRASES: List[Tuple[str, str]] = [
     (r"\bSUSPENDED\s*/\s*REVOKED\b", "Suspended or Revoked"),
     (r"\bREVOKED\s*/\s*SUSPENDED\b", "Revoked or Suspended"),
     # Existing Texas / common jail shorthand
+    (r"\bTOUCH\s*(?:OR|/|&)\s*STRIKE\b", "Battery (Touch or Strike)"),
+    (r"\bSTRIKE\s*(?:OR|/|&)\s*TOUCH\b", "Battery (Touch or Strike)"),
     (r"\bASSLT\s+CBI\s+FV\b", "Assault Causes Bodily Injury Family Violence"),
     (r"\bASSLT\s+CBI\b", "Assault Causes Bodily Injury"),
     (r"\bAGG\s+ASSLT\b", "Aggravated Assault"),
