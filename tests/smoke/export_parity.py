@@ -29,6 +29,9 @@ class ExportParityTests(unittest.TestCase):
         )
         self.assertRegex(out, r"(?i)12-16\s+yo\b")
         self.assertNotRegex(out, r"(?i)\byoa\b")
+        # Victim under-12 must survive sanitize (not eaten as HTML)
+        self.assertRegex(out, r"(?i)victim\s*<?\s*12")
+        self.assertNotRegex(out, r"(?i)offender")
 
     def test_arrest_date_no_time_and_a_number_prefix(self):
         from gui_app.shared.export_card_fields import arrest_date_label

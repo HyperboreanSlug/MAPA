@@ -65,6 +65,12 @@ _DEFENDANT_OVER = re.compile(
     r"(?:\s+years?(?:\s+of\s+age)?)?(?:\s+or\s+older)?\s*[\-)]?"
     r"|\s*\(\s*defendant\s+over\s*18\s*\)"
 )
+# Offender-age element (same idea as defendant-over-18), not a separate crime.
+_OFFENDER_AGE = re.compile(
+    r"(?i)\s+offender\s*(?:[><=]+\s*)?\d+\s*(?:yoa?|years?(?:\s+of\s+age)?)?"
+    r"(?:\s+or\s+older)?\b"
+    r"|\s+offender\s+\d+\s*(?:yoa?|years?(?:\s+of\s+age)?)?\s+or\s+older\b"
+)
 _TRAILING_ROLE = re.compile(
     r"(?i)\s*[-–—]\s*(?:Principal|Accomplice|Aider|Abettor)\b.*$"
 )
@@ -193,6 +199,7 @@ def polish_card_charge(text: str) -> str:
         s = _PAREN_JAIL_CODE.sub(" ", s)
         s = _BARE_JAIL_CODE.sub(" ", s)
         s = _DEFENDANT_OVER.sub(" ", s)
+        s = _OFFENDER_AGE.sub(" ", s)
         s = _TRAILING_ROLE.sub("", s)
         s = _LEADING_CODE.sub("", s)
         s = _OVERCOME_WILL.sub("", s)

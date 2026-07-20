@@ -27,7 +27,9 @@ _CASE_NUMBER = re.compile(
 
 _SPLIT = re.compile(r"\s*[;|]\s*")
 _WORDY = re.compile(r"[A-Za-z]{3,}")
-_HTML_TAG = re.compile(r"<[^>]+>")
+# Real HTML only (letter tag name). Do not treat age compares like
+# ``Victim <12 Offender >18`` as tags — that was deleting victim ages.
+_HTML_TAG = re.compile(r"</?[A-Za-z][A-Za-z0-9]*(?:\s[^>]*)?>")
 # Fielded jail dumps: "Description: SPEEDING; Issuing Authority: …; Bond …"
 _HAS_FIELDED_DESC = re.compile(
     r"(?i)\bDescription\s*:.*(Issuing\s+Authority|Bond\s+Information|"
