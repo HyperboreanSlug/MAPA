@@ -194,7 +194,7 @@ class ChargeFilterTests(unittest.TestCase):
                 )
             }
         )
-        self.assertRegex(fl_card, r"(?i)giving underage person alcohol")
+        self.assertRegex(fl_card, r"(?i)giving underage alcohol")
         self.assertNotRegex(fl_card, r"(?i)defendant\s+over")
         self.assertNotRegex(fl_card, r"(?i)misc\s*\d|lewd\s*\d")
         self.assertLess(

@@ -49,7 +49,7 @@ class ExportParityTests(unittest.TestCase):
         out = crime({"charge_description": raw})
         low = out.lower()
         self.assertRegex(low, r"lewd|lascivious|molest|battery")
-        self.assertIn("giving underage person alcohol", low)
+        self.assertIn("giving underage alcohol", low)
         self.assertNotRegex(out, r"(?i)defendant\s+over")
         self.assertNotRegex(out, r"(?i)\b(?:lewd|leds|lews|misc)\s*\d{3,}")
         self.assertNotRegex(out, r"(?i)\(\s*(?:lewd|misc)\s*\d+")

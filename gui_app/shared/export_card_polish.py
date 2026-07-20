@@ -152,7 +152,7 @@ def _ordinal_degree(match: re.Match) -> str:
 def _rewrite_card_phrases(s: str) -> str:
     """Map long boilerplate offense strings to short card labels."""
     if _ALCOHOL_UNDERAGE.search(s):
-        s = _ALCOHOL_UNDERAGE.sub("Giving underage person alcohol", s)
+        s = _ALCOHOL_UNDERAGE.sub("Giving Underage Alcohol", s)
     return s
 
 
