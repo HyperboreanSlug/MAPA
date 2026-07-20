@@ -183,6 +183,25 @@ class ChargeFilterTests(unittest.TestCase):
             }
         )
         self.assertRegex(recovered, r"(?i)attempted.*sexual\s+assault.*child")
+        # FL alcohol + lewd dump: plain alcohol label; no defendant age / jail codes
+        fl_card = crime(
+            {
+                "charge_description": (
+                    "SELLING, GIVING, OR SERVING ALCOHOL BEVERAGE TO PERSON "
+                    "UNDER 21 (MISC0325); LEWD OR LASCIVIOUS CONDUCT (TOUCH) "
+                    "(DEFENDANT OVER 18) (LEWD1456); LEWD OR LASCIVIOUS "
+                    "MOLESTATION DEFENDANT OVER 18 VICTIM 12 - 15 (LEWD1454)"
+                )
+            }
+        )
+        self.assertRegex(fl_card, r"(?i)giving underage person alcohol")
+        self.assertNotRegex(fl_card, r"(?i)defendant\s+over")
+        self.assertNotRegex(fl_card, r"(?i)misc\s*\d|lewd\s*\d")
+        self.assertLess(
+            fl_card.lower().find("lewd"),
+            fl_card.lower().find("giving underage"),
+            msg=fl_card,
+        )
 
     def test_charge_classifications_and_filter(self):
         self.assertEqual(classify_charge("RAPE FIRST DEGREE"), "sex_crimes")

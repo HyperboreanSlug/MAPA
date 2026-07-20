@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import re
 
+from gui_app.shared.export_card_severity import sort_charges_by_severity
+
 # Kept as full uppercase on cards (never mixed case).
 _CARD_ACRONYMS = {
     "dui": "DUI",
@@ -45,6 +47,24 @@ _PAREN_META = re.compile(
     r"\([^)]*(?:Lev|Deg|Count|Principal|Page)[^)]*\)",
     re.IGNORECASE,
 )
+# Jail statute crumbs: (MISC0325) (LEWD1456) (LEWD 1454) (LEDS1456)
+_PAREN_JAIL_CODE = re.compile(
+    r"\((?:"
+    r"[A-Z]{2,12}\s*\d{2,6}"
+    r"|LE[DW]S?\s*\d{3,6}"
+    r")\)",
+    re.IGNORECASE,
+)
+# Bare trailing codes when not already parenthetical.
+_BARE_JAIL_CODE = re.compile(
+    r"(?i)\s*\b(?:LEWD|LEDS|LEWS|MISC|FS|ORS|RCW|PC|HS)\s*\d{3,6}\b"
+)
+# Element language: age-of-defendant / principal status, not a crime.
+_DEFENDANT_OVER = re.compile(
+    r"(?i)\s*(?:[\-(]\s*)?defendant\s+(?:is\s+)?(?:over|age)\s*18"
+    r"(?:\s+years?(?:\s+of\s+age)?)?(?:\s+or\s+older)?\s*[\-)]?"
+    r"|\s*\(\s*defendant\s+over\s*18\s*\)"
+)
 _TRAILING_ROLE = re.compile(
     r"(?i)\s*[-–—]\s*(?:Principal|Accomplice|Aider|Abettor)\b.*$"
 )
@@ -53,9 +73,7 @@ _SEX_CHILD = re.compile(
     r"(?i)\b((?:Aggravated\s+)?(?:Sexual\s+)?(?:Assault|Abuse|Battery|Rape))"
     r"\s+Child\b"
 )
-# CO statutory element language left on booking labels (not a separate crime).
 _OVERCOME_WILL = re.compile(r"(?i)\s+overcome\s+victim'?s?\s+will\b")
-# Leftover court-history meta (sanitize usually removes; belt-and-suspenders).
 _CARD_TRAIL_META = re.compile(
     r"(?is)\s+(?:"
     r"Conviction\s+Date|"
@@ -81,10 +99,28 @@ _DEGREE_DEG = re.compile(
 )
 _BARE_DEG = re.compile(r"(?i)\b(\d+(?:st|nd|rd|th))\s+Deg\b")
 _WITH_SLASH = re.compile(r"(?i)\bw\s*/\s*")
+# Furnishing alcohol to under-21 → short plain label.
+_ALCOHOL_UNDERAGE = re.compile(
+    r"(?i)\b(?:"
+    r"(?:selling,?\s*)?(?:giving,?\s*)?(?:or\s+)?(?:serving\s+)?"
+    r"alcohol(?:ic)?\s+(?:beverage\s+)?to\s+(?:a\s+)?"
+    r"(?:person\s+under\s*21|minor|underage(?:\s+person)?)"
+    r"|"
+    r"furnish(?:ing)?\s+(?:of\s+)?alcohol(?:ic)?\s+(?:beverage\s+)?"
+    r"to\s+(?:a\s+)?(?:minor|person\s+under|underage)"
+    r"|"
+    r"provid(?:e|ing)\s+alcohol(?:ic)?\s+(?:beverage\s+)?"
+    r"to\s+(?:a\s+)?(?:minor|person\s+under|underage)"
+    r")\b"
+    r"(?:\s*\([^)]*\))?"
+)
 _SMALL_WORDS = frozenset(
     {"a", "an", "and", "of", "or", "the", "to", "for", "in", "on", "by", "with"}
 )
 _AFFIX = re.compile(r"^([(\"'\[]*)(.*?)([.,;:\"'\)\]]*)$")
+# Age ranges must keep hyphen (not become charge separators).
+_AGE_RANGE = re.compile(r"\b(\d{1,2})\s*[-–—]\s*(\d{1,2})\b")
+_AGE_RANGE_TOKEN = "\u0001AGERANGE\u0001"
 
 
 def limit_charge_labels(text: str, max_labels: int) -> str:
@@ -113,6 +149,13 @@ def _ordinal_degree(match: re.Match) -> str:
     return f"{n}{suf} Degree"
 
 
+def _rewrite_card_phrases(s: str) -> str:
+    """Map long boilerplate offense strings to short card labels."""
+    if _ALCOHOL_UNDERAGE.search(s):
+        s = _ALCOHOL_UNDERAGE.sub("Giving underage person alcohol", s)
+    return s
+
+
 def polish_card_charge(text: str) -> str:
     """Strip codes/meta and normalize phrasing for share-card readability."""
     parts: list[str] = []
@@ -124,6 +167,9 @@ def polish_card_charge(text: str) -> str:
         s = _PAGE_JUNK.sub("", s)
         s = _CARD_TRAIL_META.sub("", s)
         s = _PAREN_META.sub(" ", s)
+        s = _PAREN_JAIL_CODE.sub(" ", s)
+        s = _BARE_JAIL_CODE.sub(" ", s)
+        s = _DEFENDANT_OVER.sub(" ", s)
         s = _TRAILING_ROLE.sub("", s)
         s = _LEADING_CODE.sub("", s)
         s = _OVERCOME_WILL.sub("", s)
@@ -137,7 +183,10 @@ def polish_card_charge(text: str) -> str:
         s = _BARE_DEG.sub(r"\1 Degree", s)
         s = _SEX_CHILD.sub(r"\1 of a Child", s)
         s = _BAC_FRAG.sub("", s)
+        s = _rewrite_card_phrases(s)
         s = re.sub(r"\s+", " ", s).strip(" -–—:;")
+        s = re.sub(r"\(\s*\)", "", s)
+        s = re.sub(r"\s+", " ", s).strip(" -–—:;.")
         if not s:
             continue
         key = s.casefold()
@@ -145,6 +194,7 @@ def polish_card_charge(text: str) -> str:
             continue
         seen.add(key)
         parts.append(s)
+    parts = sort_charges_by_severity(parts)
     return "; ".join(parts)
 
 
@@ -175,11 +225,21 @@ def _proper_word(core: str, *, first: bool) -> str:
 def normalize_charge_separators(text: str) -> str:
     """Structural joins → middle-dot `` · `` only (parity with SORPA)."""
     t = text or ""
+    # Protect victim age ranges (12 - 15) before hyphen→middot conversion.
+    ages: list[str] = []
+
+    def _keep_age(m: re.Match) -> str:
+        ages.append(f"{m.group(1)}-{m.group(2)}")
+        return f"{_AGE_RANGE_TOKEN}{len(ages) - 1}{_AGE_RANGE_TOKEN}"
+
+    t = _AGE_RANGE.sub(_keep_age, t)
     t = re.sub(r"\s*[—–]\s*", " · ", t)
     t = re.sub(r"\s+-\s+", " · ", t)
     t = re.sub(r"\s*;\s*", " · ", t)
     t = re.sub(r"(?:\s*·\s*)+", " · ", t)
     t = re.sub(r"\s{2,}", " ", t)
+    for i, val in enumerate(ages):
+        t = t.replace(f"{_AGE_RANGE_TOKEN}{i}{_AGE_RANGE_TOKEN}", val)
     return t.strip(" ·;,|")
 
 

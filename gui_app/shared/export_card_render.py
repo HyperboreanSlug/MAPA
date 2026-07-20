@@ -1,9 +1,8 @@
 """Render and save premium shareable arrest mugshot cards."""
 from __future__ import annotations
 
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Mapping, Tuple
+from typing import Any, Mapping
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -21,12 +20,11 @@ from gui_app.shared.export_card_fields import (
     _WATERMARK,
     arrest_datetime,
     crime,
-    desktop_dir,
     load_font,
     location,
     person_name,
-    safe_filename,
 )
+from gui_app.shared.export_card_fit import plan_crime_panel
 from gui_app.shared.export_card_photo import (
     draw_seal_watermark,
     load_mugshot,
@@ -37,10 +35,12 @@ from scraper.searcher import format_race_label
 # Layout scale (matches premium HTML card proportions on 1080×1350).
 _PAD = 48
 _NAME_SIZE = 52
-_CRIME_H = 128
+_CRIME_H_MIN = 72
+_CRIME_H_MAX = 280
 _BANNER_H = 96
 _FOOTER_H = 68
 _NUMBER_SIZE = 52  # bottom-right export No. — large (SORPA parity)
+_PHOTO_H_MIN = 360
 
 
 def render_export_card(
@@ -71,27 +71,33 @@ def render_export_card(
         loc_left = loc
 
     name_font = load_font(_NAME_SIZE, bold=True)
-    crime_font = load_font(42, bold=True)
     footer_font = load_font(22)
     number_font = load_font(_NUMBER_SIZE, bold=True)
     reported_font = load_font(22, bold=True)
     race_font = _load_display_font(48)
 
     max_text_w = _CARD_W - _PAD * 2
-    # Reserve bottom stack so photo fills remaining space.
-    stack_h = (
-        20  # gap under photo
-        + _name_block_h(draw, name, name_font, max_text_w)
-        + 16
-        + _BANNER_H
-        + 16
-        + _CRIME_H
-        + 16
-        + _FOOTER_H
-        + _PAD
+    name_h = _name_block_h(draw, name, name_font, max_text_w)
+    # Room left for crime after photo min + fixed chrome.
+    fixed_below = (
+        20 + name_h + 16 + _BANNER_H + 16 + 16 + _FOOTER_H + _PAD
     )
+    crime_budget = max(
+        _CRIME_H_MIN,
+        min(_CRIME_H_MAX, _CARD_H - _PAD - _PHOTO_H_MIN - fixed_below),
+    )
+    # Prefer full text: shrink type first, then grow panel (photo shrinks).
+    crime_font, crime_line_h, crime_lines, crime_h = plan_crime_panel(
+        draw,
+        cr,
+        max_width=max_text_w - 36,
+        max_height=crime_budget,
+    )
+    crime_h = max(_CRIME_H_MIN, min(crime_budget, max(crime_h, _CRIME_H_MIN)))
+
+    stack_h = fixed_below + crime_h
     photo_top = _PAD
-    photo_h = max(420, _CARD_H - photo_top - stack_h)
+    photo_h = max(_PHOTO_H_MIN, _CARD_H - photo_top - stack_h)
     photo_box = (_CARD_W - _PAD * 2, photo_h)
     photo_rect = (_PAD, photo_top, _PAD + photo_box[0], photo_top + photo_box[1])
 
@@ -119,7 +125,15 @@ def render_export_card(
     y = _draw_race_banner(
         draw, race, y + 8, _PAD, max_text_w, reported_font, race_font
     )
-    y = _draw_crime_panel(draw, cr, y + 12, _PAD, max_text_w, crime_font)
+    y = _draw_crime_panel(
+        draw,
+        crime_lines,
+        y + 12,
+        _PAD,
+        crime_h,
+        crime_font,
+        crime_line_h,
+    )
     _draw_footer(
         draw,
         loc_left,
@@ -218,16 +232,21 @@ def _draw_race_banner(
 
 
 def _draw_crime_panel(
-    draw, text: str, y: int, margin: int, max_w: int, font
+    draw,
+    lines: list,
+    y: int,
+    margin: int,
+    panel_h: int,
+    font,
+    line_h: int,
 ) -> int:
-    box = (margin, y, _CARD_W - margin, y + _CRIME_H)
+    box = (margin, y, _CARD_W - margin, y + panel_h)
     draw.rounded_rectangle(box, radius=18, fill=_CRIME_PANEL, outline=_LINE, width=2)
-    lines = wrap_text(draw, text or "—", font, max_w - 36)[:3]
     ty = y + 14
-    for line in lines:
+    for line in lines or ["—"]:
         draw.text((margin + 18, ty), line, font=font, fill=_TEXT)
-        ty += 36
-    return y + _CRIME_H
+        ty += line_h
+    return y + panel_h
 
 
 def _draw_footer(
@@ -268,27 +287,3 @@ def _draw_footer(
     )
 
 
-def export_record_card_to_desktop(record: Mapping[str, Any]) -> Path:
-    """Render and save a PNG card to the user's Desktop; return the path.
-
-    Deliberate export: mints export No., marks confirmed incorrect (SORPA parity).
-    """
-    img = render_export_card(record, assign_number=True)
-    desktop = desktop_dir()
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    name = safe_filename(person_name(record) or "arrest")
-    out = desktop / f"{name}_{stamp}.png"
-    n = 1
-    while out.exists():
-        out = desktop / f"{name}_{stamp}_{n}.png"
-        n += 1
-    img.convert("RGB").save(out, format="PNG", optimize=True)
-    try:
-        from gui_app.shared.export_card_confirm import (
-            mark_export_confirmed_incorrect,
-        )
-
-        mark_export_confirmed_incorrect(record)
-    except Exception:
-        pass
-    return out

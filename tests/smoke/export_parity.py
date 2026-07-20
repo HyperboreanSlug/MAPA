@@ -29,6 +29,42 @@ class ExportParityTests(unittest.TestCase):
         out = card_charge_text("ASSAULT — BATTERY")
         self.assertIn(" · ", out)
         self.assertNotIn("—", out)
+        # Victim age ranges must not become charge separators
+        self.assertEqual(
+            normalize_charge_separators("Molestation Victim 12 - 15"),
+            "Molestation Victim 12-15",
+        )
+
+    def test_jason_singh_card_charges(self):
+        """FL multi-charge dump: sex first, no codes, alcohol short label."""
+        from gui_app.shared.export_card_fields import crime
+
+        raw = (
+            "SELLING, GIVING, OR SERVING ALCOHOL BEVERAGE TO PERSON UNDER 21 "
+            "(MISC0325); LEWD OR LASCIVIOUS CONDUCT (TOUCH) (DEFENDANT OVER 18) "
+            "(LEWD1456); LEWD OR LASCIVIOUS MOLESTATION DEFENDANT OVER 18 "
+            "VICTIM 12 - 15 (LEWD1454); LEWD OR LASCIVIOUS BATTERY (ENGAGE). "
+            "(LEWD1401)"
+        )
+        out = crime({"charge_description": raw})
+        low = out.lower()
+        self.assertRegex(low, r"lewd|lascivious|molest|battery")
+        self.assertIn("giving underage person alcohol", low)
+        self.assertNotRegex(out, r"(?i)defendant\s+over")
+        self.assertNotRegex(out, r"(?i)\b(?:lewd|leds|lews|misc)\s*\d{3,}")
+        self.assertNotRegex(out, r"(?i)\(\s*(?:lewd|misc)\s*\d+")
+        # Sex charges before alcohol
+        alc_i = low.find("giving underage")
+        sex_i = min(
+            i
+            for i in (
+                low.find("lewd"),
+                low.find("molest"),
+                low.find("battery"),
+            )
+            if i >= 0
+        )
+        self.assertLess(sex_i, alc_i, msg=out)
 
     def test_export_number_assign_once(self):
         from gui_app.shared.export_card_release import (

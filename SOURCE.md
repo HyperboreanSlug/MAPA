@@ -98,7 +98,9 @@ tests/                         # Smoke suite split under tests/smoke/
 | `scraper/identity_review.py` | Person keys, sibling lookup, classification queue dedupe |
 | `export_card.py` | Public API: `render_export_card`, `export_record_card_to_desktop` |
 | `export_card_fields.py` | Name (**UPPERCASE**)/location/crime extractors; footer export No. (assign only on deliberate export) |
-| `export_card_polish.py` | Strip codes/meta; regular-case charges; structural joins → middle-dot `` · `` |
+| `export_card_polish.py` | Strip codes/meta/defendant-over-18; alcohol→underage short label; regular-case; `` · `` joins |
+| `export_card_severity.py` | Rank charges for export order (sex crimes first, then by severity) |
+| `export_card_fit.py` | Shrink crime-panel font so all charge text fits (no clip) |
 | `export_card_release.py` | Persistent export No. per person (`arrests.export_number` + `data/card_release.json`) |
 | `export_card_confirm.py` | Export auto-marks **Confirmed incorrect** (`ethnicity_review`) — parity with SORPA |
 | `export_card_photo.py` | Mugshot load, seal watermark prep |

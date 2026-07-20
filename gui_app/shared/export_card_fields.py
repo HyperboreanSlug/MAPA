@@ -111,28 +111,39 @@ def location(record: Mapping[str, Any]) -> str:
     return ", ".join(bits) or "Unknown location"
 
 
-def crime(record: Mapping[str, Any], *, max_labels: int = 5) -> str:
+def crime(record: Mapping[str, Any], *, max_labels: int = 6) -> str:
     """Descriptive charge line for export cards (plain language when possible).
 
     Prefers expanded offense text (including recovery from raw_json) over coarse
     table buckets like \"SEX OFFENSE\", so cards state the actual crime.
+    Charges are severity-sorted (sex offenses first) after polish.
     """
     from gui_app.shared.export_card_polish import (
         card_charge_text,
         limit_charge_labels,
         polish_card_charge,
     )
+    from gui_app.shared.export_card_severity import sort_charges_by_severity
     from scraper.charge_expand import expand_charge
     from scraper.charge_summary import summarize_charge
+
+    def _finalize(text: str) -> str:
+        # polish already severity-sorts; re-sort after proper-case for safety.
+        joined = card_charge_text(text)
+        if " · " not in joined:
+            return limit_charge_labels(joined, max_labels)
+        parts = [p.strip() for p in joined.split(" · ") if p.strip()]
+        parts = sort_charges_by_severity(parts)
+        return limit_charge_labels(" · ".join(parts), max_labels)
 
     full = expand_charge(record)
     if full and full != "—":
         polished = polish_card_charge(full)
         if polished:
-            return card_charge_text(limit_charge_labels(polished, max_labels))
+            return _finalize(polished)
     summary = summarize_charge(record)
     if summary and summary not in ("—", "OTHER"):
-        return card_charge_text(limit_charge_labels(summary, max_labels))
+        return _finalize(polish_card_charge(summary) or summary)
     cat = str(record.get("charge_category") or "").strip()
     return cat.replace("_", " ").title() if cat else "Unknown charge"
 
