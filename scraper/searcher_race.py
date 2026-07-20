@@ -216,7 +216,19 @@ def _is_compatible(
         return True
     if family == "hispanic" and race == "WHITE":
         return _has_hispanic_ethnicity(recorded_ethnicity)
-    if race == "BLACK" and family in ("european", "jewish", "portuguese"):
+    # Anglo/European surnames are not race signals for minority race codes
+    # (same rationale as Black: Johnson on Native American is not a misclass).
+    if family in ("european", "jewish") and race in (
+        "BLACK",
+        "HISPANIC",
+        "NATIVE AMERICAN",
+        "ASIAN",
+        "OTHER",
+        "UNKNOWN",
+        "OTHER ASIAN",
+    ):
+        return True
+    if race == "BLACK" and family == "portuguese":
         return True
     compatible = _ETHNICITY_COMPATIBLE_RACES.get(family)
     if not compatible:

@@ -4,10 +4,8 @@ from __future__ import annotations
 from typing import List, Optional, Tuple
 
 from scraper.ethnic_names_asian_unique import matches_are_only_asian
-from scraper.ethnic_names_black_unique import (
-    is_black_only_name_combo,
-    is_shared_black_white_surname,
-)
+from scraper.ethnic_names_black_unique import is_black_only_name_combo
+from scraper.ethnic_names_hispanic_unique import is_shared_hispanic_white_surname
 
 
 def _is_black_family_label(ethnicity: str) -> bool:
@@ -32,10 +30,14 @@ class EthnicNamesClassifyMixin:
         Middle names are used like first names for corroboration / dampening.
 
         Asian: high confidence from name alone only when the surname is
-        *only Asian* (no non-Asian family hits, not a shared White/Asian name).
+        *only Asian* (no non-Asian family hits, not a shared White/Asian name,
+        not Filipino-only Spanish colonial surnames).
 
         Black / African: high confidence only for a *Black-only first + last*
         combo (distinctive AA given name + uniquely Black/African surname).
+
+        Hispanic: shared White/Hispanic surnames (Martin) need a Hispanic
+        given-name signal for high confidence.
         """
         if not surname:
             return ("Unknown", 0.0, [])
@@ -73,10 +75,10 @@ class EthnicNamesClassifyMixin:
             has_aa_first_name=aa_first,
             matches=matches,
         )
-        # Shared White/Black surnames (Mack, Washington): keep AA only with AA given name
-        # (SORPA parity). Christopher Mack → no tag; DeShawn Mack → AA.
-        shared_bw = is_shared_black_white_surname(surname_lc)
-        allow_black = black_only_combo or (shared_bw and aa_first)
+        # Shared White/Black surnames (Washington, Mack): never high Black conf
+        # from name alone — even with AA first names. Only uniquely Black
+        # surname + AA first (black_only_combo) may flag White as Black.
+        allow_black = black_only_combo
         if not allow_black:
             matches = [
                 m for m in matches if not _is_black_family_label(m[0])
@@ -188,6 +190,14 @@ class EthnicNamesClassifyMixin:
 
         # Name alone must not flag White as Black unless allowed Black combo.
         if _is_black_family_label(best_match) and not allow_black:
+            confidence = min(confidence, 0.35)
+
+        # Shared White/Hispanic (Martin): need Hispanic given name for high conf.
+        if (
+            best_match == "Hispanic"
+            and is_shared_hispanic_white_surname(surname_lc)
+            and fn_signal != "hispanic"
+        ):
             confidence = min(confidence, 0.35)
 
         return (best_match, confidence, [m[0] for m in matches])

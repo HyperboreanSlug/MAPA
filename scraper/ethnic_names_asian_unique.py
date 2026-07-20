@@ -6,7 +6,8 @@ misclassification from name analysis alone.
 
 A surname drives a high-confidence Asian label only when it is *only Asian*:
   * not on the shared White/Asian collision list, and
-  * surname matches do not also hit a non-Asian family (Hispanic, European, …).
+  * surname matches do not also hit a non-Asian family (Hispanic, European, …),
+  * and the Asian group is not *only* Filipino (Spanish colonial surnames).
 """
 from __future__ import annotations
 
@@ -34,23 +35,44 @@ def is_shared_asian_white_surname(surname: Optional[str]) -> bool:
     return s in _SHARED_ASIAN_WHITE_SURNAMES
 
 
+def _asian_group_key(ethnicity: str) -> str:
+    """Extract asian subgroup from 'Asian (filipino)' → 'filipino'."""
+    eth = (ethnicity or "").strip()
+    if not eth.startswith("Asian"):
+        return ""
+    if "(" in eth and eth.endswith(")"):
+        return eth[eth.find("(") + 1 : -1].strip().lower()
+    return "asian"
+
+
 def matches_are_only_asian(
     surname: Optional[str],
     matches: Iterable[Tuple[str, str]],
 ) -> bool:
     """True when name analysis may treat this surname as exclusively Asian.
 
-    Requires at least one Asian match, no non-Asian family matches, and
-    surname not on the shared White/Asian collision list.
+    Requires at least one Asian match, no non-Asian family matches, surname
+    not on the shared White/Asian collision list, and not *only* Filipino
+    (Spanish colonial names like Fernandez/Gonzales dominate that list and
+    must not mark White people as high-confidence Asian).
     """
     if is_shared_asian_white_surname(surname):
         return False
     has_asian = False
+    asian_groups: set = set()
     for ethnicity, _source in matches:
         eth = (ethnicity or "").strip()
         if eth.startswith("Asian"):
             has_asian = True
+            g = _asian_group_key(eth)
+            if g:
+                asian_groups.add(g)
             continue
         # Any other family (Hispanic, European, Indian, …) → not only Asian
         return False
-    return has_asian
+    if not has_asian:
+        return False
+    # Filipino-only lists are Spanish-colonial heavy — not exclusive East Asian.
+    if asian_groups and asian_groups <= {"filipino"}:
+        return False
+    return True

@@ -112,7 +112,7 @@ tests/                         # Smoke suite split under tests/smoke/
 | `__init__.py` | `BrowseTabMixin` + sub-view registration |
 | `misclassify.py` | Public `MisclassifyTabMixin` composition |
 | `misclassify_constants.py` | Column labels + verification filter maps |
-| `misclassify_suspect.py` | Filter rows to surname-vs-race misclass suspects |
+| `misclassify_suspect.py` | Filter rows to surname-vs-race misclass suspects (name + eye/hair) |
 | `misclassify_verdict.py` | Persist verification; correct → actual=stated race |
 | `misclassify_build.py` | Filters UI (stated race, actual race, confirmation, **source**, last N days/weeks) |
 | `misclassify_actions.py` | Refresh, verification save, actual-race save |
@@ -243,8 +243,9 @@ tests/                         # Smoke suite split under tests/smoke/
 | `ethnic_names_match.py` | Surname set membership helpers |
 | `ethnic_names_classify.py` | `classify_by_name` orchestration |
 | `ethnic_names_confidence.py` | Confidence scoring |
-| `ethnic_names_asian_unique.py` | Only-Asian vs shared White/Asian surname rules |
+| `ethnic_names_asian_unique.py` | Only-Asian vs shared White/Asian; Filipino-only not only-Asian |
 | `ethnic_names_black_unique.py` | Black-only first+last vs shared White/Black rules |
+| `ethnic_names_hispanic_unique.py` | Shared White/Hispanic (Martin) needs Hispanic given name |
 | `ethnic_names.json` | Data file (not code) |
 
 ### Database (`scraper/database/`)

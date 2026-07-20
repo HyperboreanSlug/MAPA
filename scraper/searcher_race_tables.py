@@ -25,11 +25,18 @@ _ETHNICITY_COMPATIBLE_RACES = {
         "AMERICAN INDIAN OR ALASKA NATIVE", "ALASKA NATIVE", "I", "N", "NATIVE",
     },
     "arabic": {"WHITE", "OTHER", "MIDDLE EASTERN", "ARAB", "W"},
-    # Anglo / European surnames are common among Black Americans (not a
-    # race misclassification). Do not flag race=Black as "should be White".
-    "jewish": {"WHITE", "OTHER", "BLACK", "W", "B"},
-    "portuguese": {"WHITE", "HISPANIC", "OTHER", "BLACK", "W", "B"},
-    "european": {"WHITE", "CAUCASIAN", "BLACK", "W", "B"},
+    # Anglo / European surnames are common among Black, Hispanic, Native
+    # American, and multi-racial Americans — not a race misclassification.
+    # Do not flag race=Black/Hispanic/Native/Asian as "should be White".
+    "jewish": {
+        "WHITE", "OTHER", "UNKNOWN", "BLACK", "HISPANIC", "NATIVE AMERICAN",
+        "ASIAN", "W", "B", "H",
+    },
+    "portuguese": {"WHITE", "HISPANIC", "OTHER", "BLACK", "W", "B", "H"},
+    "european": {
+        "WHITE", "CAUCASIAN", "BLACK", "HISPANIC", "NATIVE AMERICAN",
+        "ASIAN", "OTHER", "UNKNOWN", "W", "B", "H",
+    },
     "african": {
         "BLACK", "AFRICAN AMERICAN", "AFRICAN-AMERICAN", "B",
         "BLACK OR AFRICAN AMERICAN",

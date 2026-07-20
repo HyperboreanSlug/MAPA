@@ -10,12 +10,15 @@ Methodology (important):
   * Distinctive high-confidence Indian surnames (Patel, Singh, …) stay strong
     unless the first name strongly contradicts.
   * Asian: name analysis alone must not mark White as Asian unless the
-    surname is *only Asian* (see ethnic_names_asian_unique.py) — not Lee/Park
-    and not multi-family (e.g. Hispanic+Filipino, German+Bach).
+    surname is *only Asian* (see ethnic_names_asian_unique.py) — not Lee/Park,
+    not multi-family (e.g. Hispanic+Filipino, German+Bach), and not
+    Filipino-only Spanish colonial surnames (Fernandez, Gonzales, …).
   * Black: name analysis alone must not mark White as Black unless both
     first and last are Black-only (see ethnic_names_black_unique.py) —
     distinctive AA given name + uniquely Black/African surname (not
     DeShawn Washington; yes Jamal Adebayo).
+  * Hispanic: shared White/Hispanic surnames (Martin) need a Hispanic
+    given name (see ethnic_names_hispanic_unique.py).
 """
 from __future__ import annotations
 

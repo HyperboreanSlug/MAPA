@@ -118,6 +118,52 @@ class MisclassAnalyzeTests(unittest.TestCase):
         self.assertFalse(_is_compatible("Hispanic", "White"))
         self.assertFalse(_is_compatible("Hispanic", "Black"))
 
+    def test_anglo_not_flagged_on_native_or_hispanic(self):
+        """Anglo surnames on Native American / Hispanic are not misclassifications."""
+        from scraper.searcher import _is_compatible
+
+        self.assertTrue(_is_compatible("European (english)", "Native American"))
+        self.assertTrue(_is_compatible("European (english)", "I"))
+        self.assertTrue(_is_compatible("European (scottish)", "Hispanic"))
+        self.assertTrue(_is_compatible("European (english)", "H"))
+        self.assertTrue(_is_compatible("Jewish", "Asian"))
+        self.assertTrue(_is_compatible("European (english)", "Other"))
+
+    def test_filipino_spanish_not_high_asian(self):
+        """Spanish colonial surnames only on Filipino list are not high Asian."""
+        eth = EthnicNameDatabase()
+        for first, last in (
+            ("Mario", "Fernandez"),
+            ("Alfredo", "Gonzales"),
+            ("Jesus", "Alfaro"),
+            ("Juan", "Andrada"),
+            ("Richard", "Fernandez"),
+        ):
+            e, c, _ = eth.classify_by_name(last, first_name=first)
+            self.assertFalse(
+                e.startswith("Asian") and c >= 0.5,
+                f"{first} {last} must not be high Asian (got {e} {c})",
+            )
+            # Prefer Hispanic so White→Hispanic product path still works.
+            self.assertEqual(e, "Hispanic", f"{first} {last} → {e}")
+            self.assertGreaterEqual(c, 0.5, f"{first} {last} conf {c}")
+        # True East Asian surnames still flag as Asian
+        e_ng, c_ng, _ = eth.classify_by_name("Nguyen", first_name="John")
+        self.assertTrue(e_ng.startswith("Asian"), e_ng)
+        self.assertGreaterEqual(c_ng, 0.5, c_ng)
+
+    def test_martin_shared_hispanic_needs_hispanic_first(self):
+        """Martin (English/French) is not high Hispanic without Hispanic first name."""
+        eth = EthnicNameDatabase()
+        e1, c1, _ = eth.classify_by_name("Martin", first_name="Christopher")
+        self.assertFalse(
+            e1 == "Hispanic" and c1 >= 0.5,
+            f"Christopher Martin must not be high Hispanic (got {e1} {c1})",
+        )
+        e2, c2, _ = eth.classify_by_name("Martin", first_name="Jose")
+        self.assertEqual(e2, "Hispanic")
+        self.assertGreaterEqual(c2, 0.5, c2)
+
     def test_same_person_not_queued_twice(self):
         """Two bookings for the same person yield one misclass row; confirm hides both."""
         import tempfile

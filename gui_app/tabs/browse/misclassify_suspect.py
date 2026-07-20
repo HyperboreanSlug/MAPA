@@ -54,12 +54,13 @@ def filter_suspected_misclass(
     ``unreviewed``), confirmed people (including identity siblings) are excluded
     and the list is person-deduped so one person is not shown multiple times.
     """
+    from scraper.searcher_appearance import apply_appearance_signals
     from scraper.searcher_names import (
         _first_name_from_record,
         _last_name_from_record,
         _middle_name_from_record,
     )
-    from scraper.searcher_race import _is_compatible
+    from scraper.searcher_race import _ethnicity_family, _is_compatible
 
     if ethnic_db is None:
         from scraper.ethnic_names import EthnicNameDatabase
@@ -87,7 +88,7 @@ def filter_suspected_misclass(
         middle = _middle_name_from_record(rec)
         recorded_race = (rec.get("race") or "").strip()
         recorded_eth = (rec.get("ethnicity") or "").strip() or None
-        likely, conf, _ = ethnic_db.classify_by_name(
+        likely, conf, matching = ethnic_db.classify_by_name(
             last,
             first_name=first or None,
             middle_name=middle or None,
@@ -96,8 +97,18 @@ def filter_suspected_misclass(
             continue
         if _is_compatible(likely, recorded_race, recorded_eth):
             continue
-        # Annotate for Actual race column / sidebar when unset or model-driven.
+        # Eye/hair parity with analyze_ethnicities (light phenotype can drop).
         rec = dict(rec)
+        conf, matching, _meta = apply_appearance_signals(
+            rec,
+            likely,
+            conf,
+            matching,
+            family=_ethnicity_family(likely),
+        )
+        if conf < min_confidence:
+            continue
+        # Annotate for Actual race column / sidebar when unset or model-driven.
         rec["likely_ethnicity"] = likely
         rec["name_confidence"] = conf
         out.append(rec)
