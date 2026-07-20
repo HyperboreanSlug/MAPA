@@ -22,6 +22,8 @@ _SHARED_ASIAN_WHITE_SURNAMES = frozenset({
     "bond", "son", "man", "dan", "fan", "ran", "sean", "sam", "tim", "tom",
     "jim", "ray", "day", "may", "jay", "kay", "way", "gay", "roy", "ring",
     "wing", "king", "young",
+    # Scots/English short form of Thomas; also romanized Cambodian
+    "thom",
     # Also on European lists; kept here so "only Asian" stays false if JSON drifts
     "bach", "jung", "david", "van", "neri",
 })

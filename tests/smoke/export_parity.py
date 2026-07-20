@@ -136,6 +136,20 @@ class ExportParityTests(unittest.TestCase):
             f"got {eth}",
         )
 
+    def test_thom_kenneth_arthur_is_european(self):
+        """Thom is Scots/English (Thomas short form), not high-conf Cambodian."""
+        from scraper.ethnic_names import EthnicNameDatabase
+
+        edb = EthnicNameDatabase()
+        eth, conf, labels = edb.classify_by_name(
+            "Thom", first_name="Kenneth", middle_name="Arthur"
+        )
+        self.assertTrue(
+            eth.startswith("European"),
+            f"got {eth} conf={conf} labels={labels}",
+        )
+        self.assertFalse(eth.startswith("Asian"), f"got {eth}")
+
 
 if __name__ == "__main__":
     unittest.main()
