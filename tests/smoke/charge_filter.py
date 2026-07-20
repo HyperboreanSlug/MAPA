@@ -157,6 +157,14 @@ class ChargeFilterTests(unittest.TestCase):
         ):
             self.assertEqual(summarize_charge(raw), "ASSAULT / BATTERY", msg=raw)
             self.assertEqual(classify_charge(raw), "violent", msg=raw)
+        for raw in (
+            "Online Solicit Of A Minor",
+            "ONLINE SOLICIT OF A MINOR",
+            "Online Solicitation of a Minor",
+            "SOLICIT OF A MINOR",
+        ):
+            self.assertEqual(summarize_charge(raw), "SEX OFFENSE", msg=raw)
+            self.assertEqual(classify_charge(raw), "sex_crimes", msg=raw)
         # Unmatched → OTHER (not raw docket text)
         self.assertEqual(summarize_charge("ZZZ UNKNOWN FOOBAR CHARGE XYZ"), "OTHER")
         from gui_app.shared.export_card_fields import crime

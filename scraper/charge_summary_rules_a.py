@@ -108,6 +108,10 @@ _SUMMARY_RULES_A: List[Tuple[str, List[str]]] = [
         '\\bfailure\\s+to\\s+register.*(sex|offender)',
         '\\bunlawful\\s+sexual', '\\bfondl', '\\benticing\\s+a\\s+(child|minor)',
         '\\belectronic\\s+solicitation', '\\bengage\\s+child\\s+in\\s+sex',
+        # Jail shorthand: Online Solicit Of A Minor / online solicitation of minor
+        '\\bonline\\s+solicit(?:ation)?\\s+(?:of\\s+)?(?:a\\s+)?minor',
+        '\\bsolicit(?:ation)?\\s+(?:of\\s+)?(?:a\\s+)?minor\\b',
+        '\\bsolicit(?:ation)?\\s+(?:of\\s+)?(?:a\\s+)?child\\b',
         '\\bluring\\s+a\\s+minor', '\\bsex\\s+act.*student',
         '\\bdeviant\\s+sexual', '\\bdeviate\\s+sexual',
         '\\bharmful\\s+matter.*minor', '\\bviolation\\s+of\\s+a\\s+minor',

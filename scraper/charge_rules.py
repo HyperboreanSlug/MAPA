@@ -43,6 +43,8 @@ _RULES: List[Tuple[str, List[str]]] = [
             r"\bprostitution\b", r"\bpatroniz\w*\s+prostitut",
             r"\bsex\s+traffick", r"\bhuman\s+traffick",
             r"\bsolicit\w*\s+.*(sex|prostitu|minor)", r"\bpandering\b",
+            r"\bonline\s+solicit(?:ation)?\s+(?:of\s+)?(?:a\s+)?minor",
+            r"\bsolicit(?:ation)?\s+(?:of\s+)?(?:a\s+)?(?:minor|child)\b",
             r"\binvasion\s+of\s+privacy.*(sex|intimate)",
             r"\bunlawful\s+sexual", r"\bsexual\s+conduct",
             r"\bforcible\s+fondl", r"\bfondling\b", r"\bfondl",
