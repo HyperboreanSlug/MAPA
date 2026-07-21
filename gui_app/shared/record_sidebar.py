@@ -37,6 +37,7 @@ class RecordSidebar(RecordSidebarActionsMixin, RecordSidebarShowMixin):
         self._record: Optional[Dict[str, Any]] = None
         self._on_verdict: Optional[Callable[[Dict[str, Any], str], None]] = None
         self._on_actual_race: Optional[Callable[[Dict[str, Any], str], None]] = None
+        self._on_export_done: Optional[Callable[[Dict[str, Any]], None]] = None
         self._ui_q: queue.Queue[Callable[[], None]] = queue.Queue()
         self._pumping = False
         self._syncing_actual = False

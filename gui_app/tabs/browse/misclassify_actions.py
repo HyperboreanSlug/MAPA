@@ -200,6 +200,15 @@ class MisclassifyActionsMixin:
             self.mc_tree.item(iid, values=self._browse_row_values(rec))
         self.browse_sidebar.show(rec)
 
+    def _browse_export_done(self, record: Dict[str, Any]) -> None:
+        want = self._browse_verification_query(self.browse_review.get())
+        drop = want in ("unreviewed", "unverified", "none", "unset", "correct")
+        self._browse_sync_row(record, drop=drop)
+        name = self._browse_name(record)
+        self.browse_status.configure(
+            text=f"Exported card for {name} · marked incorrect."
+        )
+
     def _browse_sidebar_verdict(self, record: Dict[str, Any], verdict: str):
         label = (
             "confirmed correct" if verdict == "correct" else "confirmed incorrect"

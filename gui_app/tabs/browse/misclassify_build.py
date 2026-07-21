@@ -18,6 +18,7 @@ from gui_app.tabs.browse.misclassify_constants import (
 )
 from gui_app.theme import C, FONT_SM
 from gui_app.widgets import (
+    _bind_tree_scroll_isolation,
     _enable_tree_column_sort,
     _hpaned,
     _stretch_columns,
@@ -153,6 +154,7 @@ class MisclassifyBuildMixin:
         _stretch_columns(
             self.mc_tree, BROWSE_COLS, [200, 100, 130, 140, 180, 50, 110, 120]
         )
+        _bind_tree_scroll_isolation(self.mc_tree, wrap)
 
         self.browse_sidebar = RecordSidebar(pane)
         # Coarse actual-race buckets only on Browse (not the long ethnicity list).
@@ -160,6 +162,7 @@ class MisclassifyBuildMixin:
         self.browse_sidebar.bind_after(self.after)
         self.browse_sidebar.bind_verdict(self._browse_sidebar_verdict)
         self.browse_sidebar.bind_actual_race(self._browse_sidebar_actual_race)
+        self.browse_sidebar.bind_export_done(self._browse_export_done)
         pane.add(left, minsize=360, stretch="always")
         pane.add(self.browse_sidebar.frame, minsize=400, stretch="always")
 
@@ -258,4 +261,6 @@ class MisclassifyBuildMixin:
         if record is None:
             self.browse_sidebar.clear()
             return
+        if isinstance(record, dict) and not record.get("_db_path"):
+            record["_db_path"] = self.db_path
         self.browse_sidebar.show(record)

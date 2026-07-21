@@ -6,9 +6,8 @@ from typing import Any, Mapping
 
 from PIL import Image, ImageDraw, ImageFont
 
+from gui_app.shared.export_card_banner import BANNER_H, draw_race_banner
 from gui_app.shared.export_card_fields import (
-    _BANNER_RED,
-    _BANNER_TEXT,
     _BG,
     _CARD_H,
     _CARD_W,
@@ -38,8 +37,9 @@ _NAME_SIZE = 52
 # Original crime box was 128px @ 42pt; grow when needed, shrink type only as last resort.
 _CRIME_H_MIN = 128
 _CRIME_H_MAX = 300
-_BANNER_H = 96
 _FOOTER_H = 68
+_REPORTED_SIZE = 38
+_RACE_SIZE = 76
 _NUMBER_SIZE = 52  # bottom-right export No. — large (SORPA parity)
 _PHOTO_H_MIN = 420
 
@@ -74,14 +74,14 @@ def render_export_card(
     name_font = load_font(_NAME_SIZE, bold=True)
     footer_font = load_font(22)
     number_font = load_font(_NUMBER_SIZE, bold=True)
-    reported_font = load_font(22, bold=True)
-    race_font = _load_display_font(48)
+    reported_font = load_font(_REPORTED_SIZE, bold=True)
+    race_font = _load_display_font(_RACE_SIZE)
 
     max_text_w = _CARD_W - _PAD * 2
     name_h = _name_block_h(draw, name, name_font, max_text_w)
     # Room left for crime after photo min + fixed chrome.
     fixed_below = (
-        20 + name_h + 16 + _BANNER_H + 16 + 16 + _FOOTER_H + _PAD
+        20 + name_h + 16 + BANNER_H + 16 + 16 + _FOOTER_H + _PAD
     )
     crime_budget = max(
         _CRIME_H_MIN,
@@ -124,7 +124,7 @@ def render_export_card(
 
     y = photo_top + photo_h + 20
     y = _draw_name(draw, name, y, _PAD, max_text_w, name_font)
-    y = _draw_race_banner(
+    y = draw_race_banner(
         draw, race, y + 8, _PAD, max_text_w, reported_font, race_font
     )
     y = _draw_crime_panel(
@@ -189,48 +189,6 @@ def _draw_name(draw, name: str, y: int, margin: int, max_w: int, font) -> int:
         y += 58
     return y
 
-
-def _draw_race_banner(
-    draw,
-    race: str,
-    y: int,
-    margin: int,
-    max_w: int,
-    label_font,
-    race_font,
-) -> int:
-    top = y
-    draw.rounded_rectangle(
-        (margin, top, _CARD_W - margin, top + _BANNER_H),
-        radius=14,
-        fill=_BANNER_RED,
-        outline=(178, 58, 58, 255),
-        width=2,
-    )
-    label = "Reported As"
-    race_txt = (race or "Unknown").upper()
-    lb = draw.textbbox((0, 0), label, font=label_font)
-    lw, lh = lb[2] - lb[0], lb[3] - lb[1]
-    race_lines = wrap_text(draw, race_txt, race_font, max_w - 40)[:1]
-    rb = draw.textbbox((0, 0), race_lines[0], font=race_font)
-    rw, rh = rb[2] - rb[0], rb[3] - rb[1]
-    gap = 4
-    block = lh + gap + rh
-    cy = top + max(0, (_BANNER_H - block) // 2)
-    draw.text(
-        ((_CARD_W - lw) // 2, cy - lb[1]),
-        label,
-        font=label_font,
-        fill=(245, 217, 217, 255),
-    )
-    cy += lh + gap
-    draw.text(
-        ((_CARD_W - rw) // 2, cy - rb[1]),
-        race_lines[0],
-        font=race_font,
-        fill=_BANNER_TEXT,
-    )
-    return top + _BANNER_H
 
 
 def _draw_crime_panel(

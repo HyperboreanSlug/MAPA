@@ -57,6 +57,9 @@ class RecordSidebarActionsMixin:
                         ),
                         text_color=C["success"],
                     )
+                    cb = getattr(self, "_on_export_done", None)
+                    if cb and isinstance(self._record, dict):
+                        cb(self._record)
 
                 self._schedule(ok)
             except Exception as exc:

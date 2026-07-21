@@ -27,6 +27,11 @@ class RecordSidebarShowMixin:
     ) -> None:
         self._on_actual_race = callback
 
+    def bind_export_done(
+        self, callback: Optional[Callable[[Dict[str, Any]], None]]
+    ) -> None:
+        self._on_export_done = callback
+
     def _emit_verdict(self, verdict: str) -> None:
         if not self._record or not self._on_verdict:
             return
