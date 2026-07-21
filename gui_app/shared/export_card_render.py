@@ -185,7 +185,13 @@ def _draw_foil_sheen(canvas: Image.Image) -> None:
 
 def _draw_name(draw, name: str, y: int, margin: int, max_w: int, font) -> int:
     for line in wrap_text(draw, name or "—", font, max_w)[:2]:
-        draw.text((margin, y), line, font=font, fill=_FOIL)
+        try:
+            bb = draw.textbbox((0, 0), line, font=font)
+            lw = int(bb[2] - bb[0])
+        except Exception:
+            lw = max_w
+        x = margin + max(0, (max_w - lw) // 2)
+        draw.text((x, y), line, font=font, fill=_FOIL)
         y += 58
     return y
 
