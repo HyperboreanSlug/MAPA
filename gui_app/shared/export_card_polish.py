@@ -20,6 +20,9 @@ _CARD_ACRONYMS = {
     "b&e": "B&E",
     "usc": "USC",
     "leo": "LEO",
+    "dv": "DV",
+    "vop": "VOP",
+    "pv": "PV",
 }
 
 # Leading statute / booking codes before the offense words.
@@ -188,6 +191,7 @@ def _rewrite_card_phrases(s: str) -> str:
 _DROP_UNLESS_ONLY = re.compile(
     r"(?i)arrest\s+on\s+failure\s+to\s+obey\s+written\s+promise\s+to\s+appear"
 )
+_VOP_REDUNDANT = re.compile(r"(?i)\bVOP\s*\(VOP\)\s*VOP\b")
 
 
 def polish_card_charge(text: str) -> str:
@@ -218,6 +222,7 @@ def polish_card_charge(text: str) -> str:
         s = _BARE_DEG.sub(r"\1 Degree", s)
         s = _SEX_CHILD.sub(r"\1 of a Child", s)
         s = _BAC_FRAG.sub("", s)
+        s = _VOP_REDUNDANT.sub("VOP", s)
         s = _rewrite_card_phrases(s)
         s = re.sub(r"\s+", " ", s).strip(" -–—:;")
         s = re.sub(r"\(\s*\)", "", s)
