@@ -179,10 +179,15 @@ def misclass_race_bucket(recorded_race: Optional[str]) -> str:
     return "Other"
 
 
+_ICE_SORT = re.compile(r"(?i)\bice\b|immigration|detainer|\bins\s+hold\b|\bdhs\s+hold\b")
+
+
 def tree_cell_sort_key(val: Any):
     s = str(val if val is not None else "").strip()
     if not s or s in ("—", "–", "-", "N/A", "n/a", "None"):
         return (2, 0.0, "")
+    if _ICE_SORT.search(s):
+        return (-1, 0.0, s.casefold())
     cleaned = s.replace(",", "").replace("\u00a0", " ").strip()
     if cleaned.endswith("%"):
         cleaned = cleaned[:-1].strip()

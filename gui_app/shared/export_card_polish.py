@@ -185,6 +185,11 @@ def _rewrite_card_phrases(s: str) -> str:
     return s
 
 
+_DROP_UNLESS_ONLY = re.compile(
+    r"(?i)arrest\s+on\s+failure\s+to\s+obey\s+written\s+promise\s+to\s+appear"
+)
+
+
 def polish_card_charge(text: str) -> str:
     """Strip codes/meta and normalize phrasing for share-card readability."""
     parts: list[str] = []
@@ -202,7 +207,7 @@ def polish_card_charge(text: str) -> str:
         s = _OFFENDER_AGE.sub(" ", s)
         s = _TRAILING_ROLE.sub("", s)
         s = _LEADING_CODE.sub("", s)
-        s = _OVERCOME_WILL.sub("", s)
+        s = _OVERCOME_WILL.sub(" ", s)
         s = _WITH_SLASH.sub("With ", s)
         s = _DOT_ORDINAL.sub(" ", s)
         s = _CLASS_TAIL.sub("", s)
@@ -224,6 +229,8 @@ def polish_card_charge(text: str) -> str:
             continue
         seen.add(key)
         parts.append(s)
+    if len(parts) > 1:
+        parts = [p for p in parts if not _DROP_UNLESS_ONLY.search(p)]
     parts = sort_charges_by_severity(parts)
     return "; ".join(parts)
 
