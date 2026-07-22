@@ -67,6 +67,7 @@ def import_state_bulk(
     download: bool = True,
     force_download: bool = False,
     data_root: Path | str = Path("data/downloads"),
+    enrich: bool = True,
 ) -> Dict[str, Dict[str, int]]:
     """Download (optional) and import one or more state DOC bulk sources."""
     data_root = Path(data_root)
@@ -126,4 +127,22 @@ def import_state_bulk(
             f"Done {key}: read={r.get('read', 0):,} imported={r.get('imported', 0):,} "
             f"skipped={r.get('skipped', 0):,}"
         )
+        if enrich:
+            _run_enrich(key, database=database)
     return results
+
+
+def _run_enrich(key: str, *, database: str = "data/arrests.db") -> None:
+    """Run post-import enrichment (photo backfill) for a state if available."""
+    if key == "north_carolina":
+        log(f"\n--- Enriching NC DAC mugshots ---")
+        try:
+            from scraper.nc_dac import enrich_nc_dac_photos
+
+            stats = enrich_nc_dac_photos(database=database)
+            log(f"NC enrich: {stats}")
+        except Exception as e:
+            log(f"NC enrich failed: {e}")
+    else:
+        meta = STATE_SOURCES.get(key, {})
+        log(f"  (no photo enrichment available for {meta.get('state', key)})")

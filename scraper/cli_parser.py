@@ -87,6 +87,11 @@ def build_parser() -> argparse.ArgumentParser:
         default="data/downloads",
         help="Root for state bulk folders",
     )
+    psb.add_argument(
+        "--no-enrich",
+        action="store_true",
+        help="Skip post-import photo enrichment",
+    )
 
     penc = sub.add_parser(
         "enrich-nc-dac",
