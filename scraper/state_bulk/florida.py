@@ -44,24 +44,32 @@ class FDCClient:
         self._ev = ev["value"] if ev else ""
 
     def search_last(self, prefix: str, page: int = 1) -> List[Dict[str, Any]]:
-        if not self._vs:
-            self._refresh_tokens()
-        time.sleep(self._delay)
-        data = {
-            "__VIEWSTATE": self._vs,
-            "__EVENTVALIDATION": self._ev,
-            "__VIEWSTATEGENERATOR": "4046C2A2",
-            "ctl00$ContentPlaceHolder1$txtLastName": prefix,
-            "ctl00$ContentPlaceHolder1$txtFirstName": "",
-            "ctl00$ContentPlaceHolder1$txtdcnumber": "",
-            "ctl00$ContentPlaceHolder1$chkSearchaliases": "on",
-            "ctl00$ContentPlaceHolder1$nophotos": "on",
-            "ctl00$ContentPlaceHolder1$txtmatches": "50",
-            "ctl00$ContentPlaceHolder1$btnSubmit2": "Submit Request",
-        }
-        r = self._s.post(SEARCH_URL, data=data, timeout=30)
-        r.raise_for_status()
-        return self._parse_results(r.text)
+        for attempt in range(3):
+            if self._cancel:
+                return []
+            if not self._vs:
+                self._refresh_tokens()
+            time.sleep(self._delay)
+            data = {
+                "__VIEWSTATE": self._vs,
+                "__EVENTVALIDATION": self._ev,
+                "__VIEWSTATEGENERATOR": "4046C2A2",
+                "ctl00$ContentPlaceHolder1$txtLastName": prefix,
+                "ctl00$ContentPlaceHolder1$txtFirstName": "",
+                "ctl00$ContentPlaceHolder1$txtdcnumber": "",
+                "ctl00$ContentPlaceHolder1$chkSearchaliases": "on",
+                "ctl00$ContentPlaceHolder1$nophotos": "on",
+                "ctl00$ContentPlaceHolder1$txtmatches": "50",
+                "ctl00$ContentPlaceHolder1$btnSubmit2": "Submit Request",
+            }
+            try:
+                r = self._s.post(SEARCH_URL, data=data, timeout=30)
+                r.raise_for_status()
+                return self._parse_results(r.text)
+            except (requests.ConnectionError, requests.Timeout):
+                time.sleep(3 * (attempt + 1))
+                self._vs = ""
+        return []
 
     def _parse_results(self, html: str) -> List[Dict[str, Any]]:
         soup = BeautifulSoup(html, "html.parser")

@@ -57,9 +57,9 @@ def _get(row: Dict[str, Any], *names: str) -> Any:
 
 
 def map_vt_row(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    first = clean(_get(row, "first_name", "first name", "firstname"))
-    last = clean(_get(row, "last_name", "last name", "lastname"))
-    mid = clean(_get(row, "middle_name", "middle name", "middle"))
+    first = clean(_get(row, "OffenderFirstName", "first_name", "first name", "firstname"))
+    last = clean(_get(row, "OffenderLastName", "last_name", "last name", "lastname"))
+    mid = clean(_get(row, "OffenderMiddleName", "middle_name", "middle name", "middle"))
     if not (first or last):
         full = clean(_get(row, "name", "full_name", "offender_name"))
         if full and "," in full:
@@ -73,15 +73,16 @@ def map_vt_row(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
             last = parts[-1] if len(parts) > 1 else None
     if not (first or last):
         return None
-    race = normalize_race(clean(_get(row, "race", "race_code", "race_ethnicity")))
+    race = normalize_race(clean(_get(row, "Race", "race", "race_code", "race_ethnicity")))
     sex = normalize_sex(clean(_get(row, "sex", "gender", "sex_code")))
     dob = excel_serial_to_iso(_get(row, "dob", "date_of_birth", "birth_date"))
-    offense = clean(_get(row, "offense", "crime", "charge", "most_serious_offense"))
-    facility = clean(_get(row, "facility", "institution", "housing_facility"))
-    county = clean(_get(row, "county", "county_of_commitment"))
-    admit = excel_serial_to_iso(_get(row, "admission_date", "admit_date", "custody_admission_date"))
-    release = excel_serial_to_iso(_get(row, "release_date", "projected_release"))
-    doc_id = clean(_get(row, "doc_id", "offender_id", "id", "inmate_id"))
+    age = clean(_get(row, "CurrentAgeInYears", "age"))
+    offense = clean(_get(row, "ChargeDescription", "offense", "crime", "charge", "most_serious_offense"))
+    facility = clean(_get(row, "LegalStatusAgency", "facility", "institution", "housing_facility"))
+    county = clean(_get(row, "CityOfResidence", "county", "county_of_commitment"))
+    admit = excel_serial_to_iso(_get(row, "BookingDate", "admission_date", "admit_date", "custody_admission_date"))
+    release = excel_serial_to_iso(_get(row, "DateReleased", "release_date", "projected_release"))
+    doc_id = clean(_get(row, "OffenderID", "doc_id", "offender_id", "id", "inmate_id"))
     parts = [p for p in (first, mid, last) if p]
     return {
         "first_name": first.title() if first else None,
@@ -91,6 +92,7 @@ def map_vt_row(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         "sex": sex,
         "gender": sex,
         "race": race,
+        "age": age,
         "booking_date": admit,
         "arrest_date": admit,
         "release_date": release,

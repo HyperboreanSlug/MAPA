@@ -86,7 +86,20 @@ def normalize_race(value: Optional[str]) -> Optional[str]:
         "U": None,
         "UNKNOWN": None,
     }
-    return mapping.get(u, v.title())
+    if u in mapping:
+        return mapping[u]
+    # Verbose labels (VT DOC, census-style)
+    if "AFRICAN" in u or u.startswith("BLACK"):
+        return "Black"
+    if "WHITE" in u and "HISPANIC" not in u:
+        return "White"
+    if "HISPANIC" in u or "LATINO" in u:
+        return "Hispanic"
+    if "ASIAN" in u or "PACIFIC" in u:
+        return "Asian"
+    if "NATIVE" in u or "INDIAN" in u or "ALASKA" in u:
+        return "American Indian"
+    return v.title()
 
 
 def excel_serial_to_iso(value: Any) -> Optional[str]:
