@@ -34,14 +34,20 @@ class FDCClient:
         self._cancel = True
 
     def _refresh_tokens(self):
-        time.sleep(self._delay)
-        r = self._s.get(SEARCH_URL, timeout=30)
-        r.raise_for_status()
-        soup = BeautifulSoup(r.text, "html.parser")
-        vs = soup.select_one("#__VIEWSTATE")
-        ev = soup.select_one("#__EVENTVALIDATION")
-        self._vs = vs["value"] if vs else ""
-        self._ev = ev["value"] if ev else ""
+        for attempt in range(3):
+            try:
+                time.sleep(self._delay)
+                r = self._s.get(SEARCH_URL, timeout=45)
+                r.raise_for_status()
+                soup = BeautifulSoup(r.text, "html.parser")
+                vs = soup.select_one("#__VIEWSTATE")
+                ev = soup.select_one("#__EVENTVALIDATION")
+                self._vs = vs["value"] if vs else ""
+                self._ev = ev["value"] if ev else ""
+                return
+            except (requests.ConnectionError, requests.Timeout):
+                time.sleep(5 * (attempt + 1))
+        raise RuntimeError("FDC: failed to refresh ViewState after 3 attempts")
 
     def search(self, last: str, first: str) -> List[Dict[str, Any]]:
         for attempt in range(3):
