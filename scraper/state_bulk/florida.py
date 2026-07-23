@@ -43,7 +43,7 @@ class FDCClient:
         self._vs = vs["value"] if vs else ""
         self._ev = ev["value"] if ev else ""
 
-    def search_last(self, prefix: str, page: int = 1) -> List[Dict[str, Any]]:
+    def search(self, last: str, first: str) -> List[Dict[str, Any]]:
         for attempt in range(3):
             if self._cancel:
                 return []
@@ -51,11 +51,17 @@ class FDCClient:
                 self._refresh_tokens()
             time.sleep(self._delay)
             data = {
+                "ctl00$ContentPlaceHolder1$ScriptManager1_HiddenField": "",
+                "__EVENTTARGET": "",
+                "__EVENTARGUMENT": "",
                 "__VIEWSTATE": self._vs,
-                "__EVENTVALIDATION": self._ev,
                 "__VIEWSTATEGENERATOR": "4046C2A2",
-                "ctl00$ContentPlaceHolder1$txtLastName": prefix,
-                "ctl00$ContentPlaceHolder1$txtFirstName": "",
+                "__SCROLLPOSITIONX": "0",
+                "__SCROLLPOSITIONY": "0",
+                "__VIEWSTATEENCRYPTED": "",
+                "__EVENTVALIDATION": self._ev,
+                "ctl00$ContentPlaceHolder1$txtLastName": last,
+                "ctl00$ContentPlaceHolder1$txtFirstName": first,
                 "ctl00$ContentPlaceHolder1$txtdcnumber": "",
                 "ctl00$ContentPlaceHolder1$chkSearchaliases": "on",
                 "ctl00$ContentPlaceHolder1$nophotos": "on",
@@ -73,31 +79,38 @@ class FDCClient:
 
     def _parse_results(self, html: str) -> List[Dict[str, Any]]:
         soup = BeautifulSoup(html, "html.parser")
-        grid = soup.select_one("#ctl00_ContentPlaceHolder1_gvOffenderList")
+        grid = soup.select_one("#ctl00_ContentPlaceHolder1_grdList")
         if not grid:
             return []
         rows = grid.select("tr")[1:]
         out: List[Dict[str, Any]] = []
         for row in rows:
             cells = [td.get_text(strip=True) for td in row.select("td")]
-            if len(cells) < 4:
+            link = row.select_one("a[href*='DCNumber=']")
+            dc_num = None
+            if link:
+                m = re.search(r"DCNumber=(\w+)", link.get("href", ""))
+                if m:
+                    dc_num = m.group(1)
+            if len(cells) < 3:
                 continue
-            rec = self._map_row(cells, row)
+            rec = self._map_row(cells, dc_num)
             if rec:
                 out.append(rec)
         return out
 
-    def _map_row(self, cells: List[str], row) -> Optional[Dict[str, Any]]:
-        name = clean(cells[0]) if cells else None
+    def _map_row(self, cells: List[str], dc_num: Optional[str]) -> Optional[Dict[str, Any]]:
+        # Columns: [row#, name, DC#, race, sex, release, facility, DOB]
+        name = clean(cells[1]) if len(cells) > 1 else None
         if not name:
             return None
-        dc_num = clean(cells[1]) if len(cells) > 1 else None
-        race = normalize_race(clean(cells[2]) if len(cells) > 2 else None)
-        sex = normalize_sex(clean(cells[3]) if len(cells) > 3 else None)
-        facility = clean(cells[4]) if len(cells) > 4 else None
+        if not dc_num:
+            dc_num = clean(cells[2]) if len(cells) > 2 else None
+        race = normalize_race(clean(cells[3]) if len(cells) > 3 else None)
+        sex = normalize_sex(clean(cells[4]) if len(cells) > 4 else None)
         release = clean(cells[5]) if len(cells) > 5 else None
-        link = row.select_one("a[href*='OffenderDetail']")
-        detail_href = link["href"] if link else None
+        facility = clean(cells[6]) if len(cells) > 6 else None
+        dob = clean(cells[7]) if len(cells) > 7 else None
         parts = name.split(",", 1)
         last = parts[0].strip().title()
         first = parts[1].strip().title() if len(parts) > 1 else None
@@ -116,9 +129,9 @@ class FDCClient:
             "booking_id": dc_num,
             "photo_url": photo,
             "source_id": f"fl_fdc:{dc_num or name}",
-            "source_url": f"{BASE}/{detail_href}" if detail_href else SEARCH_URL,
+            "source_url": f"{BASE}/detail.aspx?Page=Detail&DCNumber={dc_num}&TypeSearch=AI" if dc_num else SEARCH_URL,
             "source_system": SOURCE,
-            "raw_json": raw_json({"dc_number": dc_num, "facility": facility}),
+            "raw_json": raw_json({"dc_number": dc_num, "facility": facility, "dob": dob}),
         }
 
 
@@ -143,35 +156,39 @@ def scrape_florida(
     db = Database(database)
     totals = {"imported": 0, "skipped": 0, "skipped_identity": 0, "read": 0, "prefixes": 0}
     batch: List[Dict[str, Any]] = []
-    prefixes = _gen_prefixes()
+    last_prefixes = _gen_prefixes()
     if max_prefixes:
-        prefixes = prefixes[:max_prefixes]
+        last_prefixes = last_prefixes[:max_prefixes]
+    first_letters = list(string.ascii_uppercase)
     try:
-        for prefix in prefixes:
+        for last in last_prefixes:
             if client._cancel:
                 break
-            try:
-                results = client.search_last(prefix)
-            except Exception as e:
-                log(f"  prefix {prefix}: error {e}")
-                client._refresh_tokens()
-                continue
-            if not results:
-                continue
-            totals["prefixes"] += 1
-            for rec in results:
-                batch.append(rec)
-                totals["read"] += 1
-                if limit and totals["read"] >= limit:
+            for first in first_letters:
+                if client._cancel or (limit and totals["read"] >= limit):
                     break
-            if len(batch) >= BATCH:
-                flush_batch(db, batch, totals, force=force)
-            if totals["prefixes"] % 10 == 0:
-                log(f"  … {totals['prefixes']} prefixes, read={totals['read']:,} imported={totals['imported']:,}")
+                try:
+                    results = client.search(last, first)
+                except Exception as e:
+                    log(f"  {last}/{first}: error {e}")
+                    client._refresh_tokens()
+                    continue
+                if not results:
+                    continue
+                totals["prefixes"] += 1
+                for rec in results:
+                    batch.append(rec)
+                    totals["read"] += 1
+                    if limit and totals["read"] >= limit:
+                        break
+                if len(batch) >= BATCH:
+                    flush_batch(db, batch, totals, force=force)
+            if totals["prefixes"] and totals["prefixes"] % 26 == 0:
+                log(f"  … last={last} read={totals['read']:,} imported={totals['imported']:,}")
             if limit and totals["read"] >= limit:
                 break
         flush_batch(db, batch, totals, force=force)
     finally:
         db.close()
-    log(f"FL FDC done: prefixes={totals['prefixes']} read={totals['read']:,} imported={totals['imported']:,}")
+    log(f"FL FDC done: combos={totals['prefixes']} read={totals['read']:,} imported={totals['imported']:,}")
     return totals
