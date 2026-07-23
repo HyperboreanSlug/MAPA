@@ -49,6 +49,10 @@ class ArrestArchiverApp(
         self.title("Arrest Public Archiver")
         self.geometry("1320x860")
         self.minsize(940, 650)
+        try:
+            self.iconbitmap(str(Path(__file__).resolve().parent.parent / "assets" / "mapa.ico"))
+        except Exception:
+            pass
         self.app_settings = load_settings()
         self.db_path = sanitize_db_path(self.app_settings.get("db_path"))
         self.app_settings["db_path"] = self.db_path

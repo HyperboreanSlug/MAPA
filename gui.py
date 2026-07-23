@@ -140,6 +140,14 @@ def _start_deepface_setup_background(app_settings: Optional[dict] = None) -> Non
 
 
 def main() -> None:
+    # Unique AppUserModelID so Windows gives MAPA its own taskbar button
+    try:
+        import ctypes
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
+            "ArrestPublicArchiver.MAPA.1"
+        )
+    except Exception:
+        pass
     # GitHub auto-update before loading the full GUI (may exit + relaunch)
     try:
         from gui_app.auto_update import maybe_update_and_relaunch
