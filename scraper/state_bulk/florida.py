@@ -120,11 +120,12 @@ class FDCClient:
         parts = name.split(",", 1)
         last = parts[0].strip().title()
         first = parts[1].strip().title() if len(parts) > 1 else None
+        full = f"{first} {last}".strip() if first else last
         photo = f"{PHOTO_URL}{dc_num}" if dc_num else None
         return {
             "first_name": first,
             "last_name": last,
-            "full_name": name.title(),
+            "full_name": full,
             "race": race,
             "sex": sex,
             "gender": sex,

@@ -83,7 +83,7 @@ def map_vt_row(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     admit = excel_serial_to_iso(_get(row, "BookingDate", "admission_date", "admit_date", "custody_admission_date"))
     release = excel_serial_to_iso(_get(row, "DateReleased", "release_date", "projected_release"))
     doc_id = clean(_get(row, "OffenderID", "doc_id", "offender_id", "id", "inmate_id"))
-    parts = [p for p in (first, mid, last) if p]
+    parts = [p.title() if p else p for p in (first, mid, last) if p]
     return {
         "first_name": first.title() if first else None,
         "middle_name": mid.title() if mid else None,
