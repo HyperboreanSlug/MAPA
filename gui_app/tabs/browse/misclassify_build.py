@@ -96,7 +96,7 @@ class MisclassifyBuildMixin:
         self.browse_limit = ctk.CTkEntry(
             host, width=90, placeholder_text=str(BROWSE_DEFAULT_LIMIT)
         )
-        self.browse_stated_race.set("All")
+        self.browse_stated_race.set("White")
         self.browse_actual_race_filter.set("All")
         self.browse_review.set("Unverified")
         self.browse_limit.insert(0, str(BROWSE_DEFAULT_LIMIT))
@@ -106,6 +106,14 @@ class MisclassifyBuildMixin:
             font=FONT_SM,
             command=self._browse_filter_changed,
         )
+        self.browse_misclass_only.select()
+        self.browse_photo_only = ctk.CTkCheckBox(
+            host,
+            text="Photo only",
+            font=FONT_SM,
+            command=self._browse_filter_changed,
+        )
+        self.browse_photo_only.select()
         self.browse_refresh_btn = ctk.CTkButton(
             host, text="Refresh", command=self._browse_refresh
         )
@@ -133,6 +141,7 @@ class MisclassifyBuildMixin:
             _lbl("Limit"),
             self.browse_limit,
             self.browse_misclass_only,
+            self.browse_photo_only,
             self.browse_refresh_btn,
             export_btn,
             self.browse_status,

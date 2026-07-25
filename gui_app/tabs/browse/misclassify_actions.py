@@ -44,6 +44,10 @@ class MisclassifyActionsMixin:
             getattr(self, "browse_misclass_only", None)
             and self.browse_misclass_only.get()
         )
+        photo_only = bool(
+            getattr(self, "browse_photo_only", None)
+            and self.browse_photo_only.get()
+        )
         likely_one, likely_in = resolve_actual_filter(
             self.browse_actual_race_filter.get()
         )
@@ -79,6 +83,7 @@ class MisclassifyActionsMixin:
                         ethnicity_review=review_q,
                         source_system=None if src in ("All", "", None) else src,
                         since_date=since,
+                        photo_only=photo_only,
                         limit=fetch_limit,
                     )
                     if misclass_only:

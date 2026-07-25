@@ -41,6 +41,7 @@ class QuerySearchMixin:
         charge_category: Optional[str] = None,
         source_system: Optional[str] = None,
         since_date: Optional[str] = None,
+        photo_only: bool = False,
         limit: int = 1000,
         offset: int = 0,
     ) -> List[Dict[str, Any]]:
@@ -156,6 +157,8 @@ class QuerySearchMixin:
         if source_system and str(source_system).lower() not in ("all", "", "*"):
             q += " AND LOWER(COALESCE(source_system, '')) = LOWER(?)"
             params.append(source_system)
+        if photo_only:
+            q += " AND photo_path IS NOT NULL AND TRIM(photo_path) != ''"
         # Review status lives in JSON flags — filter in Python after a SQL prune.
         # Never load the full multi-million-row table when the caller passed a
         # positive limit (GUI Browse after bulk DOC imports).
