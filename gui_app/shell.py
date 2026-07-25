@@ -100,6 +100,7 @@ class ArrestArchiverApp(
         self.tab_host.register("Settings", self._build_settings)
         tabs.set("Browse")
         self.tab_host.ensure("Browse")
+        self.tab_host.ensure("RecentlyBooked")
 
         self.activity_log = ctk.CTkTextbox(
             self, height=110, fg_color=C["bg"], text_color=C["muted"], font=FONT_SM
