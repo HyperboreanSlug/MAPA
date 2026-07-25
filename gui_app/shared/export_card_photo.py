@@ -205,7 +205,7 @@ def draw_seal_watermark(
         text_top = top + photo_h // 2
 
     draw = ImageDraw.Draw(overlay)
-    font = load_font(max(36, photo_w // 14), bold=True)
+    font = load_font(max(44, photo_w // 10), bold=True)
     alpha = max(1, int(round(255 * text_opacity)))
     bbox = draw.textbbox((0, 0), text, font=font)
     tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
