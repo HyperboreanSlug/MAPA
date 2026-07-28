@@ -1,8 +1,9 @@
 """Shared White/Hispanic surname rules for misclassification detection.
 
-Some surnames appear on both Hispanic and European lists (notably Martin —
-English/French Martin vs Spanish Martín). Name analysis alone must not mark
-race=White as Hispanic for those without a Hispanic given-name signal.
+Surnames that appear on both Hispanic and European lists need a Hispanic
+given-name signal for high Hispanic confidence. ``Martin`` was removed from
+``hispanic_surnames`` permanently (Anglo/French surname noise); keep this
+hook for any future shared-list surnames.
 """
 from __future__ import annotations
 
@@ -10,9 +11,8 @@ from typing import Optional
 
 # Primarily Anglo/European surnames that also appear on Hispanic lists.
 # High Hispanic confidence requires a Hispanic first/middle name signal.
-_SHARED_HISPANIC_WHITE_SURNAMES = frozenset({
-    "martin",  # English/French Martin; Spanish Martín is the same token
-})
+# Martin is no longer on hispanic_surnames (removed permanently).
+_SHARED_HISPANIC_WHITE_SURNAMES = frozenset()
 
 
 def is_shared_hispanic_white_surname(surname: Optional[str]) -> bool:

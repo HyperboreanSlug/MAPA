@@ -36,7 +36,7 @@ class EthnicNamesClassifyMixin:
         Black / African: high confidence only for a *Black-only first + last*
         combo (distinctive AA given name + uniquely Black/African surname).
 
-        Hispanic: shared White/Hispanic surnames (Martin) need a Hispanic
+        Hispanic: shared White/Hispanic surnames need a Hispanic
         given-name signal for high confidence.
         """
         if not surname:
@@ -192,7 +192,7 @@ class EthnicNamesClassifyMixin:
         if _is_black_family_label(best_match) and not allow_black:
             confidence = min(confidence, 0.35)
 
-        # Shared White/Hispanic (Martin): need Hispanic given name for high conf.
+        # Shared White/Hispanic surnames: need Hispanic given name for high conf.
         if (
             best_match == "Hispanic"
             and is_shared_hispanic_white_surname(surname_lc)

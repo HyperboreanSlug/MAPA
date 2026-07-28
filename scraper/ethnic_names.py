@@ -17,8 +17,9 @@ Methodology (important):
     first and last are Black-only (see ethnic_names_black_unique.py) —
     distinctive AA given name + uniquely Black/African surname (not
     DeShawn Washington; yes Jamal Adebayo).
-  * Hispanic: shared White/Hispanic surnames (Martin) need a Hispanic
-    given name (see ethnic_names_hispanic_unique.py).
+  * Hispanic: shared White/Hispanic surnames need a Hispanic given name
+    (see ethnic_names_hispanic_unique.py). Martin is not on the Hispanic
+    surname list.
 """
 from __future__ import annotations
 

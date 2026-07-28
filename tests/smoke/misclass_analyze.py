@@ -152,17 +152,23 @@ class MisclassAnalyzeTests(unittest.TestCase):
         self.assertTrue(e_ng.startswith("Asian"), e_ng)
         self.assertGreaterEqual(c_ng, 0.5, c_ng)
 
-    def test_martin_shared_hispanic_needs_hispanic_first(self):
-        """Martin (English/French) is not high Hispanic without Hispanic first name."""
+    def test_martin_not_on_hispanic_surname_list(self):
+        """Martin was removed from hispanic_surnames (Anglo/French noise)."""
         eth = EthnicNameDatabase()
+        self.assertNotIn(
+            "martin",
+            {n.lower() for n in eth.hispanic_surnames},
+        )
         e1, c1, _ = eth.classify_by_name("Martin", first_name="Christopher")
         self.assertFalse(
             e1 == "Hispanic" and c1 >= 0.5,
             f"Christopher Martin must not be high Hispanic (got {e1} {c1})",
         )
         e2, c2, _ = eth.classify_by_name("Martin", first_name="Jose")
-        self.assertEqual(e2, "Hispanic")
-        self.assertGreaterEqual(c2, 0.5, c2)
+        self.assertFalse(
+            e2 == "Hispanic" and c2 >= 0.5,
+            f"Jose Martin must not be high Hispanic via surname alone (got {e2} {c2})",
+        )
 
     def test_same_person_not_queued_twice(self):
         """Two bookings for the same person yield one misclass row; confirm hides both."""
