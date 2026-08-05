@@ -339,6 +339,26 @@ class MisclassAnalyzeTests(unittest.TestCase):
                 f"{first} {last} should be high Black (got {e} {c})",
             )
 
+    def test_census_white_plurality_surnames_not_black(self):
+        """Census 2010 gate: White-plurality AA-list surnames never label Black."""
+        from scraper.ethnic_names_black_unique import is_shared_black_white_surname
+
+        eth = EthnicNameDatabase()
+        for s in ("meacham", "waddell", "steedman", "mccurdy", "jeffers"):
+            self.assertTrue(is_shared_black_white_surname(s), s)
+            # Not even with a distinctive AA first name
+            e, c, _ = eth.classify_by_name(s.capitalize(), first_name="Jamal")
+            black = e == "African American" or e.startswith("African (")
+            self.assertFalse(black and c >= 0.5, f"Jamal {s} got {e} {c}")
+        # Black-plurality surnames remain uniquely Black
+        for s in ("diallo", "boateng", "adebayo", "okonkwo"):
+            self.assertFalse(is_shared_black_white_surname(s), s)
+        e, c, _ = eth.classify_by_name("Okonkwo", first_name="Jamal")
+        self.assertTrue(
+            (e == "African American" or e.startswith("African (")) and c >= 0.5,
+            f"Jamal Okonkwo got {e} {c}",
+        )
+
     def test_first_name_confidence_parity(self):
         """SOR parity: ambiguous Indian surname + Anglo first name is low conf."""
         eth = EthnicNameDatabase()

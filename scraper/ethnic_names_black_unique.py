@@ -11,7 +11,9 @@ Name analysis may mark race=White as Black only when *both* are Black-only:
 """
 from __future__ import annotations
 
-from typing import Iterable, Optional, Tuple
+import json
+import os
+from typing import Dict, Iterable, List, Optional, Tuple
 
 # English/Irish/French surnames that collide with real African ethnics or are
 # too short / multi-ethnic to treat as uniquely Black.
@@ -52,6 +54,24 @@ _COMMON_US_ENGLISH_SURNAMES = frozenset({
 })
 
 
+_CENSUS_BW_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "ethnic_names_census_bw.json"
+)
+_CENSUS_BW: Optional[Dict[str, List[float]]] = None
+
+
+def _census_bw() -> Dict[str, List[float]]:
+    """Census 2010 surname -> [pctwhite, pctblack]; rebuild via scripts."""
+    global _CENSUS_BW
+    if _CENSUS_BW is None:
+        try:
+            with open(_CENSUS_BW_PATH, encoding="utf-8") as f:
+                _CENSUS_BW = json.load(f)
+        except (OSError, ValueError):
+            _CENSUS_BW = {}
+    return _CENSUS_BW
+
+
 def is_shared_black_white_surname(surname: Optional[str]) -> bool:
     """True when the surname is common to White and Black populations."""
     s = (surname or "").strip().lower()
@@ -60,6 +80,10 @@ def is_shared_black_white_surname(surname: Optional[str]) -> bool:
     if s in _AFRICAN_ENGLISH_COLLISIONS:
         return True
     if s in _COMMON_US_ENGLISH_SURNAMES:
+        return True
+    # Census 2010 gate: a White-plurality surname is never uniquely Black.
+    row = _census_bw().get(s)
+    if row is not None and row[0] >= row[1]:
         return True
     return False
 

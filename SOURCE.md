@@ -247,9 +247,10 @@ tests/                         # Smoke suite split under tests/smoke/
 | `ethnic_names_classify.py` | `classify_by_name` orchestration |
 | `ethnic_names_confidence.py` | Confidence scoring |
 | `ethnic_names_asian_unique.py` | Only-Asian vs shared White/Asian; Filipino-only not only-Asian |
-| `ethnic_names_black_unique.py` | Black-only first+last vs shared White/Black rules |
+| `ethnic_names_black_unique.py` | Black-only first+last vs shared White/Black rules; Census 2010 white-plurality gate via `ethnic_names_census_bw.json` (rebuild: `scripts/build_black_census_lookup.py`) |
 | `ethnic_names_hispanic_unique.py` | Shared White/Hispanic (Martin) needs Hispanic given name |
 | `ethnic_names.json` | Data file (not code) |
+| `ethnic_names_census_bw.json` | Data file: Census 2010 surname pctwhite/pctblack for AA/African lists |
 
 ### Database (`scraper/database/`)
 
