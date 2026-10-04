@@ -55,16 +55,10 @@ class DedupeIdentityMixin:
 
     @classmethod
     def dob_match_key(cls, record: Dict[str, Any]) -> str:
-        """DOB bucket key: normalized date_of_birth, else ``age:N`` when DOB is blank."""
+        """Return DOB key. Return empty when DOB is blank."""
         dob = cls.normalize_date_of_birth(record.get("date_of_birth"))
         if dob:
             return dob
-        age = record.get("age")
-        if age is not None and str(age).strip() != "":
-            try:
-                return f"age:{int(age)}"
-            except (TypeError, ValueError):
-                pass
         return ""
 
     @staticmethod

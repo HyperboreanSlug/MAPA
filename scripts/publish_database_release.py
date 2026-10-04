@@ -63,6 +63,7 @@ def main() -> int:
     )
     from scraper.db_publish_gate import require_publish_allowed
     from scraper.db_publish_upload import publish_api, publish_gh
+    from scraper.win_subprocess import run_kwargs
 
     require_publish_allowed(ROOT)
 
@@ -79,7 +80,8 @@ def main() -> int:
         if args.force_photo_rebuild:
             cmd.append("--force-photo-rebuild")
         print("Scrubbing + packaging DB (base or delta) + photos…")
-        rc = subprocess.call(cmd)
+        # Hide console on Windows. Keep GUI clean.
+        rc = subprocess.call(cmd, **run_kwargs())
         if rc != 0:
             return rc
 

@@ -35,3 +35,10 @@ releases/publish_state/
 
 # Planning-with-files working files (not part of the repo)
 .planning/
+
+# Local dev probes and tmp cards (never commit)
+_tmp_*.png
+_tmp_*.py
+scripts/_diag_*.py
+scripts/_profile_*.py
+scripts/monitor_imports.py

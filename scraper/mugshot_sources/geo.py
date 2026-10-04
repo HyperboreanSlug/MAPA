@@ -149,6 +149,23 @@ class GeoScrapeMixin:
                     )
             return count[0]
 
+        # City monitors run by separate forms. Skip them in county flow.
+        if source_id in (
+            "sf_sheriff",
+            "nyc_doc",
+            "hawaii_doc",
+            "baltimore_dpscs",
+            "alaska_doc",
+        ):
+            if progress_cb:
+                try:
+                    progress_cb(
+                        0, None, {"label": f"{source_id} · city monitor skips county flow"}
+                    )
+                except Exception:
+                    pass
+            return 0
+
         if source_id == "bustednewspaper":
             from scraper.bustednewspaper import (
                 BN_SSL_OUTAGE_MSG,

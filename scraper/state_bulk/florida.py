@@ -11,7 +11,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from scraper.config_types import USER_AGENT
-from scraper.state_bulk.common import BATCH, clean, flush_batch, log, normalize_race, normalize_sex, raw_json
+from scraper.state_bulk.common import BATCH, clean, excel_serial_to_iso, flush_batch, log, normalize_race, normalize_sex, raw_json
 
 SOURCE = "fl_fdc"
 STATE = "FL"
@@ -122,6 +122,8 @@ class FDCClient:
         first = parts[1].strip().title() if len(parts) > 1 else None
         full = f"{first} {last}".strip() if first else last
         photo = f"{PHOTO_URL}{dc_num}" if dc_num else None
+        # Store DOB in canonical field. Keep raw copy too.
+        dob_iso = excel_serial_to_iso(dob)
         return {
             "first_name": first,
             "last_name": last,
@@ -129,6 +131,7 @@ class FDCClient:
             "race": race,
             "sex": sex,
             "gender": sex,
+            "date_of_birth": dob_iso,
             "agency": facility or "Florida DOC",
             "jurisdiction": "Florida DOC",
             "state": STATE,

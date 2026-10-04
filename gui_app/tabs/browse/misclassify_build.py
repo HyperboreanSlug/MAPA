@@ -53,8 +53,9 @@ class MisclassifyBuildMixin:
                 host, text=text, font=FONT_SM, text_color=C["muted"]
             )
 
+        # Width fits longest race label. Stop text clip.
         self.browse_stated_race = ctk.CTkComboBox(
-            host, values=races, width=120, command=self._browse_filter_changed
+            host, values=races, width=150, command=self._browse_filter_changed
         )
         self.browse_actual_race_filter = ctk.CTkComboBox(
             host,
@@ -120,12 +121,6 @@ class MisclassifyBuildMixin:
         export_btn = ctk.CTkButton(
             host, text="Export CSV", command=self._browse_export
         )
-        self.browse_status = ctk.CTkLabel(
-            host,
-            text="Filter arrests and review with the sidebar. Confirmed stay out of Unverified.",
-            font=FONT_SM,
-            text_color=C["muted"],
-        )
         for w in (
             _lbl("Stated race"),
             self.browse_stated_race,
@@ -144,11 +139,22 @@ class MisclassifyBuildMixin:
             self.browse_photo_only,
             self.browse_refresh_btn,
             export_btn,
-            self.browse_status,
         ):
             flow.add(w)
+        # Keep status outside flow. Long text must not break wrap.
+        self.browse_status = ctk.CTkLabel(
+            controls,
+            text="Filter arrests and review with the sidebar. Confirmed stay out of Unverified.",
+            font=FONT_SM,
+            text_color=C["muted"],
+            anchor="w",
+            justify="left",
+            wraplength=900,
+        )
+        self.browse_status.pack(fill="x", padx=12, pady=(0, 6))
+        self._browse_flow = flow
         after_idle_reflow(self, flow)
-        controls.bind("<Configure>", lambda _e: flow.reflow(), add="+")
+        controls.bind("<Configure>", self._browse_on_controls_configure, add="+")
 
         self.mc_status = self.browse_status
         self.mc_analyze_btn = self.browse_refresh_btn
@@ -204,6 +210,22 @@ class MisclassifyBuildMixin:
             "il_idoc",
             "tx_tdcj",
         ]
+
+    def _browse_on_controls_configure(self, event) -> None:
+        # Grow wrap width with bar. Reflow controls.
+        w = int(getattr(event, "width", 0) or 0)
+        if w < 80:
+            return
+        try:
+            self.browse_status.configure(wraplength=max(200, w - 24))
+        except Exception:
+            pass
+        flow = getattr(self, "_browse_flow", None)
+        if flow is not None:
+            try:
+                flow.reflow()
+            except Exception:
+                pass
 
     def _browse_filter_changed(self, _choice: str = "") -> None:
         if getattr(self, "_browse_busy", False):

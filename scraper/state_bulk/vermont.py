@@ -84,6 +84,7 @@ def map_vt_row(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     release = excel_serial_to_iso(_get(row, "DateReleased", "release_date", "projected_release"))
     doc_id = clean(_get(row, "OffenderID", "doc_id", "offender_id", "id", "inmate_id"))
     parts = [p.title() if p else p for p in (first, mid, last) if p]
+    # Store DOB in canonical field. Keep raw copy too.
     return {
         "first_name": first.title() if first else None,
         "middle_name": mid.title() if mid else None,
@@ -93,6 +94,7 @@ def map_vt_row(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         "gender": sex,
         "race": race,
         "age": age,
+        "date_of_birth": dob,
         "booking_date": admit,
         "arrest_date": admit,
         "release_date": release,

@@ -162,9 +162,11 @@ class ArrestArchiverApp(
             except Exception:
                 pass
         try:
-            from gui_app.process_lifecycle import mark_closing
+            from gui_app.process_lifecycle import mark_closing, schedule_force_exit
 
             mark_closing(self)
+            # Arm exit first. Backup must not block close.
+            schedule_force_exit()
         except Exception:
             self._closing = True
         try:

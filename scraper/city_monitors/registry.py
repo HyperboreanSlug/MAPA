@@ -39,8 +39,8 @@ CITY_MONITORS: List[CityMonitorInfo] = [
         city="Baltimore",
         state="MD",
         search_url="https://dpscs.maryland.gov/",
-        available=True,
-        notes="State locator POST. Name, DOC#, facility, admission date.",
+        available=False,
+        notes="Module pending. No scraper yet.",
     ),
     CityMonitorInfo(
         id="alaska_doc",
@@ -48,8 +48,8 @@ CITY_MONITORS: List[CityMonitorInfo] = [
         city="Anchorage",
         state="AK",
         search_url="https://doc.alaska.gov/",
-        available=True,
-        notes="Form-based. Name, offender ID, facility, charge. Photo on detail.",
+        available=False,
+        notes="Module pending. No scraper yet.",
     ),
 ]
 

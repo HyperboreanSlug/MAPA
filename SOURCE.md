@@ -304,6 +304,7 @@ Named offender spreadsheets from state corrections open-data portals
 | **Texas TDCJ** | [High Value Data Sets.xlsx](https://www.tdcj.texas.gov/documents/High_Value_Data_Sets.xlsx) | ~140k named current inmates (race, offense, facility) |
 | **Missouri DOC** | [Sunshine Law fak930.zip](https://docservices.mo.gov/Sunshine_Law/fak930.zip) | All offenders since 1974, nightly fixed-width (name, race, sex, DOB, offense, county) |
 | **Vermont DOC** | [Socrata vf3r-u4kv](https://data.vermont.gov/Public-Safety/DOCPublicUseFile/vf3r-u4kv) | Daily individual-level identifiable data (name, race, sex, offense, facility) |
+| **Florida FDC** | [OffenderSearch](https://pubapps.fdc.myflorida.com/OffenderSearch/Search.aspx?TypeSearch=AI) | Named search. Stores DOB in date_of_birth. Photo URL by DC number. |
 
 | Module | Function |
 |--------|----------|
@@ -314,7 +315,8 @@ Named offender spreadsheets from state corrections open-data portals
 | `texas.py` | Download + map + import TDCJ high-value → `tx_tdcj` |
 | `missouri.py` | Download + parse fixed-width + import → `mo_doc` |
 | `vermont.py` | Download Socrata CSV + map + import → `vt_doc` |
-| `import_all.py` | Registry + dispatch (`illinois`, `texas`, `missouri`, `vermont`, `all`) |
+| `florida.py` | Search FDC by name. Map row to record. Store DOB. |
+| `import_all.py` | Registry + dispatch (`illinois`, `texas`, `missouri`, `vermont`, `florida`, `all`) |
 
 ### NC DAC bulk tables (`scraper/nc_dac/`)
 
@@ -411,6 +413,8 @@ RecentlyBooked tab source list.
 | `sf_sheriff.py` | San Francisco Sheriff inmate search |
 | `nyc_doc.py` | NYC DOC Inmate Lookup Service |
 | `hawaii_doc.py` | Hawaii DOC offender search (Honolulu) |
+| `baltimore_dpscs` | Pending. No module yet. Marked not available. |
+| `alaska_doc` | Pending. No module yet. Marked not available. |
 
 ### City coverage data (`scraper/city_coverage/`)
 
@@ -529,6 +533,7 @@ RecentlyBooked tab source list.
 | Add a new mugshot host | `mugshot_sources/registry.py` + new package like `mugshotscom/` + `geo.py` dispatch |
 | New open-data city | `config_sources.py` + field map |
 | Backfill mugshots.com Date added → dates | `scripts/backfill_mugshotscom_dates.py` |
+| Clean state-name charges | `scripts/backfill_bad_charges.py` — clears Alabama stubs. Recovers from raw. |
 | Propagate confirmation to sibling bookings | `scripts/backfill_confirmation_siblings.py` |
 
 ---
@@ -538,12 +543,12 @@ RecentlyBooked tab source list.
 ```text
 python -c "from gui_app.shell import ArrestArchiverApp; from scraper.database import Database; from scraper.searcher import ArrestSearcher; print('ok')"
 python -m unittest tests.test_smoke -v
-# Expect: Ran 21+ tests … OK
-# Expect: no production .py > 200 lines (except database_monolith_backup.py)
+# Expect: Ran 50 tests … OK
+# Note: 51 units exceed 200 lines now. Plan splits by task.
 ```
 
 ---
 
 ## Module count
 
-Approximately **220** Python modules under the repo root (post-split), all production units ≤200 lines. Prefer navigating by this document rather than opening packages wholesale.
+Approximately **338** Python modules under the repo root. Many units exceed 200 lines. See review findings. Split large units by task. Prefer navigating by this document rather than opening packages wholesale.

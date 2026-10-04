@@ -88,17 +88,17 @@ MUGSHOT_SOURCES: List[MugshotSourceInfo] = [
         id="baltimore_dpscs",
         label="Baltimore DPSCS (city monitor)",
         base_url="https://dpscs.maryland.gov/",
-        available=True,
-        notes="Maryland DPSCS incarcerated individual locator.",
-        weight=0.5,
+        available=False,
+        notes="Module pending. No scraper yet.",
+        weight=0.0,
     ),
     MugshotSourceInfo(
         id="alaska_doc",
         label="Alaska DOC (city monitor)",
         base_url="https://doc.alaska.gov/",
-        available=True,
-        notes="Alaska DOC offender search. Form-based.",
-        weight=0.5,
+        available=False,
+        notes="Module pending. No scraper yet.",
+        weight=0.0,
     ),
 ]
 

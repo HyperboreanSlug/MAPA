@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Set
 
 
 def identity_keys_for_record(record: Dict[str, Any]) -> List[str]:
-    """Stable identity keys used for cross-source de-duplication."""
+    """Build strong identity keys. Bind weak keys to name."""
     from scraper.database.dedupe import DedupeMixin
 
     keys: List[str] = []
@@ -17,17 +17,18 @@ def identity_keys_for_record(record: Dict[str, Any]) -> List[str]:
         keys.append(f"name_dob:{name}|{dob}")
         if state:
             keys.append(f"name_dob_st:{name}|{dob}|{state}")
-    # booking date + name (when DOB missing)
+    # Use booking date only with name. Drop it when DOB exists.
     bdate = str(record.get("booking_date") or record.get("arrest_date") or "").strip()[:10]
     if name and bdate and not dob:
         keys.append(f"name_bdate:{name}|{bdate}|{state}")
+    # Bind booking ID to name. Stop merges across names.
     booking_id = str(record.get("booking_id") or "").strip().casefold()
-    if booking_id and state:
-        keys.append(f"booking:{state}|{booking_id}")
-    # photo identity
+    if booking_id and state and name:
+        keys.append(f"booking:{state}|{booking_id}|{name}")
+    # Bind photo token to name. Stop merges across names.
     kind, val = DedupeMixin.photo_identity_key(record)
-    if kind != "none" and val:
-        keys.append(f"photo:{kind}:{val}")
+    if kind != "none" and val and name:
+        keys.append(f"photo:{kind}:{val}|{name}")
     return keys
 
 

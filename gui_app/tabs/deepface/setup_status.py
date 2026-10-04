@@ -70,13 +70,15 @@ class DeepfaceSetupStatusMixin:
         except Exception:
             pass
 
-        skip = os.environ.get("SOR_SKIP_DEEPFACE_INSTALL", "").strip().lower() in (
-            "1", "true", "yes",
+        # Accept MAPA prefix. Keep SOR prefix for shared installs.
+        skip_val = os.environ.get("MAPA_SKIP_DEEPFACE_INSTALL", "") or os.environ.get(
+            "SOR_SKIP_DEEPFACE_INSTALL", ""
         )
+        skip = skip_val.strip().lower() in ("1", "true", "yes")
         if skip and hasattr(self, "df_job_status"):
             try:
                 self.df_job_status.configure(
-                    text="Note: SOR_SKIP_DEEPFACE_INSTALL is set — auto-install disabled in env"
+                    text="Note: MAPA_SKIP_DEEPFACE_INSTALL is set — auto-install disabled in env"
                 )
             except Exception:
                 pass
