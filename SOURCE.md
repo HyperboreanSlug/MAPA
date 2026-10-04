@@ -380,7 +380,9 @@ https://www.dac.nc.gov/contacts/public-records-request/public-records-online
 | `locked_set.py` | Thread-safe URL set |
 | `scraper.py` | Public `MugshotsComScraper` |
 | `scraper_enrich.py` | Enrich + live scrape |
-| `scraper_county.py` | County/state/all scrapes |
+| `scraper_county.py` | Re-export county plus state mixins. |
+| `scraper_county_one.py` | One county page loop. |
+| `scraper_state_all.py` | State plus full site scrape. |
 
 ### Busted Newspaper (`scraper/bustednewspaper/`)
 
@@ -533,6 +535,7 @@ RecentlyBooked tab source list.
 | Add a new mugshot host | `mugshot_sources/registry.py` + new package like `mugshotscom/` + `geo.py` dispatch |
 | New open-data city | `config_sources.py` + field map |
 | Backfill mugshots.com Date added → dates | `scripts/backfill_mugshotscom_dates.py` |
+| Check identity safety | `scripts/verify_identity_full.py` — use `--repair` for state stubs. |
 | Clean state-name charges | `scripts/backfill_bad_charges.py` — clears Alabama stubs. Recovers from raw. |
 | Propagate confirmation to sibling bookings | `scripts/backfill_confirmation_siblings.py` |
 
@@ -551,4 +554,4 @@ python -m unittest tests.test_smoke -v
 
 ## Module count
 
-Approximately **338** Python modules under the repo root. Many units exceed 200 lines. See review findings. Split large units by task. Prefer navigating by this document rather than opening packages wholesale.
+Approximately **345** Python modules under the repo root. Split units stay near 200 lines. New splits: `charge_rules_a/b`, `export_card_polish_data`, `misclassify_refresh/row`, `scraper_county_one/state_all`. Prefer navigating by this document rather than opening packages wholesale.
