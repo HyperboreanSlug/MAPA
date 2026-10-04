@@ -54,15 +54,16 @@ def download_photo(
     if cached is not None and cached.is_file() and not is_placeholder_photo(cached):
         return cached
 
-    state = str(record.get("state") or "xx").lower()
-    county = str(record.get("county") or "unknown").lower().replace(" ", "-")
+    from scraper.paths import safe_fs_part, safe_join
+    state = safe_fs_part(record.get("state"), fallback="xx")
+    county = safe_fs_part(record.get("county"), fallback="unknown")
     ext = ".jpg"
     path_l = photo_url.lower()
     if ".webp" in path_l:
         ext = ".webp"
     elif ".png" in path_l:
         ext = ".png"
-    destination = Path(output_root) / state / county / f"{_safe_id(record)}{ext}"
+    destination = safe_join(Path(output_root), state, county) / f"{_safe_id(record)}{ext}"
     if destination.is_file() and not is_placeholder_photo(destination):
         with _guard:
             if len(_url_local) >= _MAX_CACHE:

@@ -38,7 +38,7 @@ def zip_database(scrubbed_db: Path, zip_path: Path) -> None:
 
 
 def _record_count(db_path: Path) -> tuple[int, int]:
-    conn = sqlite3.connect(str(db_path))
+    conn = sqlite3.connect(str(db_path), timeout=60.0)
     try:
         n = int(conn.execute("SELECT COUNT(*) FROM arrests").fetchone()[0])
         with_photo = int(
@@ -53,7 +53,7 @@ def _record_count(db_path: Path) -> tuple[int, int]:
 
 
 def _rebuild_full_index(root: Path, db_path: Path) -> int:
-    conn = sqlite3.connect(str(db_path))
+    conn = sqlite3.connect(str(db_path), timeout=60.0)
     conn.row_factory = sqlite3.Row
     try:
         cols = [r[1] for r in conn.execute("PRAGMA table_info(arrests)")]
@@ -196,7 +196,9 @@ def package_db_release(
             else None,
         )
 
-    man_path.write_text(json.dumps(man, indent=2) + "\n", encoding="utf-8")
+    tmp_man = man_path.with_suffix(man_path.suffix + ".tmp")
+    tmp_man.write_text(json.dumps(man, indent=2) + "\n", encoding="utf-8")
+    tmp_man.replace(man_path)
     result["manifest_path"] = str(man_path)
     result["manifest"] = man
     return result

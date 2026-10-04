@@ -42,9 +42,10 @@ def write_sync_stamp(
         "local_record_count": record_count,
         "project_root": str(project_root),
     }
-    dest.with_suffix(dest.suffix + ".sync.json").write_text(
-        json.dumps(stamp, indent=2) + "\n", encoding="utf-8"
-    )
+    stamp_path = dest.with_suffix(dest.suffix + ".sync.json")
+    tmp_stamp = stamp_path.with_suffix(stamp_path.suffix + ".tmp")
+    tmp_stamp.write_text(json.dumps(stamp, indent=2) + "\n", encoding="utf-8")
+    tmp_stamp.replace(stamp_path)
 
 
 def install_base_from_zip(
@@ -56,11 +57,20 @@ def install_base_from_zip(
     with zipfile.ZipFile(zip_path, "r") as zf:
         member = None
         for n in zf.namelist():
-            if n.replace("\\", "/").endswith("arrests.db") and not n.endswith("/"):
+            clean = n.replace("\\", "/")
+            if clean.startswith("/") or ".." in clean.split("/"):
+                continue
+            if clean.endswith("arrests.db") and not clean.endswith("/"):
                 member = n
                 break
         if not member:
             raise ValueError("Zip does not contain arrests.db")
+        # Contain extract inside dir. Stop zip slip.
+        target = (extract_dir / member).resolve()
+        try:
+            target.relative_to(extract_dir.resolve())
+        except ValueError:
+            raise ValueError("Bad zip member path")
         zf.extract(member, extract_dir)
         extracted = extract_dir / member
         if not extracted.is_file():
@@ -68,9 +78,11 @@ def install_base_from_zip(
             if not candidates:
                 raise ValueError("Failed to extract arrests.db")
             extracted = candidates[0]
-    conn = sqlite3.connect(str(extracted))
-    n = int(conn.execute("SELECT COUNT(*) FROM arrests").fetchone()[0])
-    conn.close()
+    conn = sqlite3.connect(str(extracted), timeout=60.0)
+    try:
+        n = int(conn.execute("SELECT COUNT(*) FROM arrests").fetchone()[0])
+    finally:
+        conn.close()
 
     overlays: Dict[str, Dict[str, Any]] = {}
     if dest.is_file():
@@ -83,6 +95,7 @@ def install_base_from_zip(
                 )
         except Exception as e:
             _log(log, f"Could not snapshot local classifications: {e}")
+            raise ValueError(f"Stop sync to keep local reviews: {e}")
         bak = dest.with_suffix(
             dest.suffix + f".bak_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         )

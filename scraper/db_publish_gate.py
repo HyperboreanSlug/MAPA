@@ -24,7 +24,12 @@ def is_publish_allowed(root: Optional[Path] = None) -> bool:
     try:
         if p.stat().st_size <= 0:
             return False
-    except OSError:
+        data = json.loads(p.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            return False
+        if not data.get("enabled"):
+            return False
+    except Exception:
         return False
     return True
 
@@ -57,7 +62,9 @@ def enable_publish(
         "created_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "note": (note or "Local publisher only — do not copy to other machines."),
     }
-    p.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    tmp = p.with_suffix(p.suffix + ".tmp")
+    tmp.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    tmp.replace(p)
     return p
 
 

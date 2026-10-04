@@ -51,7 +51,7 @@ def apply_delta_ops(
     Local ethnicity_review / race_manual classifications are preserved on upsert.
     """
     db_path = Path(db_path)
-    conn = sqlite3.connect(str(db_path))
+    conn = sqlite3.connect(str(db_path), timeout=60.0)
     conn.row_factory = sqlite3.Row
     try:
         idx = key_index if key_index is not None else build_key_index(conn)

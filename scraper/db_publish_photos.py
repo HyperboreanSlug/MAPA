@@ -75,7 +75,9 @@ def _load_state(root: Path) -> Dict[str, Any]:
 def _save_state(root: Path, state: Dict[str, Any]) -> None:
     p = root / SHARD_STATE_REL
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
+    tmp = p.with_suffix(p.suffix + ".tmp")
+    tmp.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
+    tmp.replace(p)
 
 
 def _shard_fingerprint(members: List[Tuple[str, str]]) -> str:

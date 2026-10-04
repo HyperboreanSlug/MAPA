@@ -7,7 +7,7 @@ from __future__ import annotations
 import re
 from typing import Iterable, List, Optional, Tuple
 
-from scraper.charge_sanitize_data import CODE_LABELS, NA_VALUES, STATE_NAMES
+from scraper.charge_sanitize_data import CODE_LABELS, NA_VALUES, STATE_ABBREVS, STATE_NAMES
 
 # Bare docket / case numbers (not offense text). (# must be escaped in VERBOSE.)
 _CASE_NUMBER = re.compile(
@@ -109,7 +109,16 @@ def is_case_number(text: str) -> bool:
 
 
 def is_state_name(text: str) -> bool:
-    return _norm(text).lower() in STATE_NAMES
+    from scraper.charge_sanitize_data import STATE_ABBREVS
+
+    low = _norm(text).lower()
+    if low in STATE_NAMES:
+        return True
+    if low in STATE_ABBREVS:
+        return True
+    if low.startswith("state of ") and low[9:].strip() in STATE_NAMES:
+        return True
+    return False
 
 
 def is_non_charge(text: str) -> bool:
@@ -120,7 +129,7 @@ def is_non_charge(text: str) -> bool:
     if not s:
         return True
     low = s.lower()
-    if low in NA_VALUES or low in STATE_NAMES:
+    if low in NA_VALUES or is_state_name(s):
         return True
     if is_case_number(s):
         return True

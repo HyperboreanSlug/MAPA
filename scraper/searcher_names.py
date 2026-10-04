@@ -20,13 +20,23 @@ def ethnicity_review_verdict(record: Optional[Dict[str, Any]]) -> str:
     return str(flags.get("ethnicity_review") or "").strip().lower()
 
 
+_SUFFIXES = {"jr", "sr", "ii", "iii", "iv", "v", "esq", "jr.", "sr.", "2nd", "3rd", "4th"}
+
+def _strip_suffix(parts: list) -> list:
+    out = list(parts)
+    while out and out[-1].lower().strip(".-") in _SUFFIXES:
+        out.pop()
+    return out
+
+
 def _last_name_from_record(record: Dict[str, Any]) -> str:
     last = (record.get("last_name") or record.get("LastName") or "").strip()
     if last:
-        return last
+        toks = _strip_suffix(last.replace(",", " ").split())
+        return toks[-1] if toks else ""
     full = (record.get("full_name") or record.get("Name") or "").strip()
     if full:
-        parts = full.replace(",", " ").split()
+        parts = _strip_suffix(full.replace(",", " ").split())
         if parts:
             return parts[-1]
     return ""

@@ -123,6 +123,32 @@ def sanitize_db_path(
     return default
 
 
+def safe_fs_part(raw: object, *, fallback: str = "unknown") -> str:
+    """Clean one path part. Stop dot dot and separators."""
+    import re
+
+    s = str(raw or "").strip().lower()
+    s = s.replace("\\", "/")
+    s = re.sub(r"[^a-z0-9._-]+", "-", s)
+    s = re.sub(r"-{2,}", "-", s).strip("-._")
+    if not s or s in (".", ".."):
+        return fallback
+    return s[:80]
+
+
+def safe_join(root: Path, *parts: object) -> Path:
+    """Join parts under root. Keep result inside root."""
+    base = Path(root).resolve()
+    out = base
+    for part in parts:
+        out = out / safe_fs_part(part)
+    try:
+        out.resolve().relative_to(base)
+    except ValueError:
+        return base / safe_fs_part(parts[-1] if parts else "file")
+    return out
+
+
 def clear_sqlite_sidecars(db_path: Path) -> None:
     """Remove ``-wal`` / ``-shm`` next to *db_path* (best-effort).
 

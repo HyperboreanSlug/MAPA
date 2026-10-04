@@ -40,7 +40,10 @@ def load_meta(root: Path) -> Dict[str, Any]:
 def save_meta(root: Path, meta: Dict[str, Any]) -> None:
     d = state_dir(root)
     d.mkdir(parents=True, exist_ok=True)
-    meta_path(root).write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+    p = meta_path(root)
+    tmp = p.with_suffix(p.suffix + ".tmp")
+    tmp.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+    tmp.replace(p)
 
 
 def open_index(root: Path, *, write: bool = False) -> sqlite3.Connection:

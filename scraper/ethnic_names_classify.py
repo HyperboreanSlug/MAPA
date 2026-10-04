@@ -43,11 +43,34 @@ class EthnicNamesClassifyMixin:
             return ("Unknown", 0.0, [])
 
         self._build_lookup_sets()
-        surname_lc = surname.strip().lower()
-        if not surname_lc:
+        # Fold accents. Strip suffixes. Split hyphens.
+        base = self._fold_accents(str(surname)).strip().lower()
+        base = base.replace(",", " ")
+        tokens = [w for w in base.split() if w]
+        suffixes = {"jr", "sr", "ii", "iii", "iv", "v", "esq", "jr.", "sr.", "2nd", "3rd", "4th"}
+        while tokens and tokens[-1].strip(".-") in suffixes:
+            tokens.pop()
+        base = " ".join(tokens)
+        if not base:
             return ("Unknown", 0.0, [])
-
-        matches = self._surname_matches(surname_lc)
+        parts = [w for w in base.replace("-", " ").split() if w]
+        # Use last token as surname when full name passed in.
+        cands = [base]
+        if len(parts) > 1:
+            cands = [parts[-1]] + [w for w in parts[:-1] if len(w) > 2]
+        seen = set()
+        matches = []
+        surname_lc = cands[0]
+        for cand in cands:
+            if cand in seen:
+                continue
+            seen.add(cand)
+            for m in self._surname_matches(cand):
+                if m not in matches:
+                    matches.append(m)
+            if len(cand) > 2:
+                surname_lc = cand
+                break
         if not matches:
             return ("Unknown", 0.0, [])
 

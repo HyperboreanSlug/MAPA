@@ -31,7 +31,9 @@ def _load(root: Optional[Path] = None) -> Dict[str, Any]:
 def _save(data: Dict[str, Any], root: Optional[Path] = None) -> None:
     p = pending_path(root)
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    tmp = p.with_suffix(p.suffix + ".tmp")
+    tmp.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    tmp.replace(p)
 
 
 def get_pending_listings(root: Optional[Path] = None) -> int:

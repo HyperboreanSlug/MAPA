@@ -142,10 +142,20 @@ def resolve_release_urls(
 
     Prefers the GitHub Releases API; falls back to the stable download URL pattern.
     """
+    import re
+
     repo = (repo or DEFAULT_GITHUB_REPO).strip().strip("/")
     tag = (tag or DEFAULT_RELEASE_TAG).strip()
     asset_name = (asset_name or DEFAULT_ASSET_NAME).strip()
     manifest_name = (manifest_name or DEFAULT_MANIFEST_NAME).strip()
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo):
+        repo = DEFAULT_GITHUB_REPO
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+", tag):
+        tag = DEFAULT_RELEASE_TAG
+    if "/" in asset_name or ".." in asset_name:
+        asset_name = DEFAULT_ASSET_NAME
+    if "/" in manifest_name or ".." in manifest_name:
+        manifest_name = DEFAULT_MANIFEST_NAME
     extra: Dict[str, str] = {}
 
     api = f"https://api.github.com/repos/{repo}/releases/tags/{tag}"

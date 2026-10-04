@@ -108,10 +108,11 @@ def download_photo(
     output_root: Path | str = Path("data/photos/bustednewspaper"),
 ) -> Optional[Path]:
     """Download a record's photo and return its archive path, or ``None`` if absent."""
+    from scraper.paths import safe_fs_part, safe_join
     photo_url = str(record.get("photo_url") or "").strip()
-    state = str(record.get("state") or "").lower()
-    county = str(record.get("county") or "").lower()
-    source_id = str(record.get("source_id") or "").strip().replace("/", "_")
+    state = safe_fs_part(record.get("state"), fallback="")
+    county = safe_fs_part(record.get("county"), fallback="")
+    source_id = safe_fs_part(record.get("source_id"), fallback="")
     if not photo_url or not state or not county or not source_id:
         return None
     if is_placeholder_photo_url(photo_url) or _should_skip_url(photo_url):
@@ -126,7 +127,7 @@ def download_photo(
             return existing_path
 
     ext = _photo_extension(photo_url)
-    destination = Path(output_root) / state / county / f"{source_id}{ext}"
+    destination = safe_join(Path(output_root), state, county) / f"{source_id}{ext}"
     dest_key = str(destination).lower()
     path_lock = _lock_for(_path_locks, dest_key)
 

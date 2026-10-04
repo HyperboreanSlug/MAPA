@@ -120,8 +120,9 @@ def download_photo(
     photo_url = str(record.get("photo_url") or "").strip()
     if not photo_url:
         return None
-    state = str(record.get("state") or "xx").lower() or "xx"
-    county = str(record.get("county") or "unknown").lower() or "unknown"
+    from scraper.paths import safe_fs_part, safe_join
+    state = safe_fs_part(record.get("state"), fallback="xx")
+    county = safe_fs_part(record.get("county"), fallback="unknown")
     booking_id = str(
         record.get("booking_id") or record.get("source_id") or ""
     ).strip()
@@ -134,6 +135,7 @@ def download_photo(
             "/"
         ).rsplit("/", 1)[-1]
         booking_id = re.sub(r"[^\w.-]+", "_", slug)[:80] or "unknown"
+    booking_id = safe_fs_part(booking_id, fallback="unknown")
     if is_placeholder_photo_url(photo_url) or _should_skip_url(photo_url):
         _mark_skip(photo_url)
         return None
@@ -146,7 +148,7 @@ def download_photo(
             _remember(photo_url, existing_path)
             return existing_path
 
-    destination = Path(output_root) / state / county / f"{booking_id}.webp"
+    destination = safe_join(Path(output_root), state, county) / f"{booking_id}.webp"
     dest_key = str(destination).lower()
     path_lock = _lock_for(_path_locks, dest_key)
 

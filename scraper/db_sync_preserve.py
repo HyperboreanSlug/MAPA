@@ -124,7 +124,7 @@ def apply_overlays_to_db(
     if not overlays:
         return 0
     db_path = Path(db_path)
-    conn = sqlite3.connect(str(db_path))
+    conn = sqlite3.connect(str(db_path), timeout=60.0)
     conn.row_factory = sqlite3.Row
     n = 0
     try:

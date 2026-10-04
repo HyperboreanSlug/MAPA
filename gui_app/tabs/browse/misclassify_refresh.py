@@ -47,12 +47,21 @@ class MisclassifyRefreshMixin:
         likely_one, likely_in = resolve_actual_filter(
             self.browse_actual_race_filter.get()
         )
+        # Read all Tk state here. Worker must not call widget get.
+        try:
+            since_main = self._browse_since_date() if hasattr(self, "_browse_since_date") else None
+        except Exception:
+            since_main = None
+        try:
+            src_main = (self.browse_source_filter.get() or "All").strip() if getattr(self, "browse_source_filter", None) is not None else "All"
+        except Exception:
+            src_main = "All"
         # Over-fetch for misclass filter; still hard-capped for memory safety.
         fetch_limit = (
             min(BROWSE_HARD_MAX, max(limit * 20, 2000)) if misclass_only else limit
         )
 
-        def work():
+        def work(since=since_main, src=src_main):
             try:
                 db = Database(self.db_path)
                 try:
@@ -63,15 +72,8 @@ class MisclassifyRefreshMixin:
                         if review_q in ("unreviewed", "unverified", "none", "unset")
                         else None
                     )
-                    since = None
-                    if hasattr(self, "_browse_since_date"):
-                        since = self._browse_since_date()
-                    src = "All"
-                    if getattr(self, "browse_source_filter", None) is not None:
-                        try:
-                            src = (self.browse_source_filter.get() or "All").strip()
-                        except Exception:
-                            src = "All"
+                    since = since
+                    src = src
                     rows = db.search_records(
                         race=None if stated in ("All", "", None) else stated,
                         likely_ethnicity=likely_one,
