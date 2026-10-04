@@ -31,7 +31,7 @@ releases/arrests.photos.*.zip
 releases/arrests.delta.*.zip
 releases/*_scrubbed.db
 releases/publish_state/
-!releases/MANIFEST.json
+releases/MANIFEST.json
 
 # Planning-with-files working files (not part of the repo)
 .planning/

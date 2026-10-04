@@ -64,16 +64,13 @@ if errorlevel 1 (
 )
 
 REM Detach GUI so this bat exits immediately (VBS can finish)
+REM Never show a console for background work. No console fallback.
 start "" /D "%~dp0" "%PYWEXE%" "%~dp0gui.py"
 if errorlevel 1 (
   echo Failed to start GUI with pythonw.>"%~dp0gui_error.log"
   echo PYWEXE=%PYWEXE%>>"%~dp0gui_error.log"
-  echo Falling back to console python...>>"%~dp0gui_error.log"
-  start "" /D "%~dp0" "%PYEXE%" "%~dp0gui.py"
-  if errorlevel 1 (
-    echo Fallback start also failed.>>"%~dp0gui_error.log"
-    exit /b 1
-  )
+  echo GUI did not start. Keep pythonw.exe installed.>>"%~dp0gui_error.log"
+  exit /b 1
 )
 
 endlocal

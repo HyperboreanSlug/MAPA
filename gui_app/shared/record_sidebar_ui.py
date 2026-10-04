@@ -85,6 +85,19 @@ def build_sidebar_widgets(sidebar: Any, parent: Any, photo_size: tuple[int, int]
     btn_row = ctk.CTkFrame(sidebar.frame, fg_color="transparent")
     btn_row.grid(row=2, column=0, sticky="ew", padx=12, pady=(0, 4))
     btn_row.grid_columnconfigure((0, 1), weight=1)
+    # Reflow stacks buttons when narrow. Keep full text clear.
+    def _reflow_btns(_e=None):
+        try:
+            narrow = btn_row.winfo_width() < 300
+        except Exception:
+            return
+        if narrow:
+            sidebar.open_btn.grid(row=0, column=0, sticky="ew", padx=0, pady=(0, 4))
+            sidebar.open_photo_btn.grid(row=1, column=0, sticky="ew", padx=0)
+        else:
+            sidebar.open_btn.grid(row=0, column=0, sticky="ew", padx=(0, 4))
+            sidebar.open_photo_btn.grid(row=0, column=1, sticky="ew", padx=(4, 0))
+    btn_row.bind("<Configure>", _reflow_btns, add="+")
     sidebar.open_btn = ctk.CTkButton(
         btn_row, text="Open source URL", command=sidebar._open_source,
         state="disabled", height=30,
@@ -106,6 +119,18 @@ def build_sidebar_widgets(sidebar: Any, parent: Any, photo_size: tuple[int, int]
     verdict_row = ctk.CTkFrame(sidebar.frame, fg_color="transparent")
     verdict_row.grid(row=4, column=0, sticky="ew", padx=12, pady=(0, 4))
     verdict_row.grid_columnconfigure((0, 1), weight=1)
+    def _reflow_verdict(_e=None):
+        try:
+            narrow = verdict_row.winfo_width() < 320
+        except Exception:
+            return
+        if narrow:
+            sidebar.correct_btn.grid(row=0, column=0, sticky="ew", padx=0, pady=(0, 4))
+            sidebar.incorrect_btn.grid(row=1, column=0, sticky="ew", padx=0)
+        else:
+            sidebar.correct_btn.grid(row=0, column=0, sticky="ew", padx=(0, 4))
+            sidebar.incorrect_btn.grid(row=0, column=1, sticky="ew", padx=(4, 0))
+    verdict_row.bind("<Configure>", _reflow_verdict, add="+")
     sidebar.correct_btn = ctk.CTkButton(
         verdict_row, text="Classified correctly", fg_color=C["success"],
         hover_color="#68b888", text_color="#0c0c0e",
