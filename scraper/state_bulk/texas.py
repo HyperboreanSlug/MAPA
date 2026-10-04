@@ -9,6 +9,7 @@ import requests
 
 from scraper.config_types import USER_AGENT
 from scraper.state_bulk.common import (
+
     BATCH,
     clean,
     excel_serial_to_iso,
@@ -20,6 +21,11 @@ from scraper.state_bulk.common import (
     raw_json,
 )
 
+def _capped(data: bytes, limit: int) -> bytes:
+    """Stop oversize downloads. Keep memory safe."""
+    if len(data) > limit:
+        raise ValueError(f"Download too large: {len(data)} bytes")
+    return data
 SOURCE = "tx_tdcj"
 STATE = "TX"
 # Official monthly spreadsheet + open-data mirror
@@ -46,7 +52,7 @@ def download_texas(
             log("  downloading TDCJ High_Value_Data_Sets.xlsx …")
             r = session.get(TDCJ_XLSX, timeout=300)
             r.raise_for_status()
-            xlsx.write_bytes(r.content)
+            xlsx.write_bytes(_capped(r.content, 200_000_000))
             log(f"  saved {xlsx.name} ({len(r.content):,} bytes)")
         else:
             log(f"  exists {xlsx.name}")
@@ -56,7 +62,7 @@ def download_texas(
         if force or not csv_path.is_file() or csv_path.stat().st_size < 100_000:
             r = session.get(SOCRATA_CSV, timeout=300)
             r.raise_for_status()
-            csv_path.write_bytes(r.content)
+            csv_path.write_bytes(_capped(r.content, 200_000_000))
             log(f"  saved {csv_path.name} ({len(r.content):,} bytes)")
         return csv_path
 

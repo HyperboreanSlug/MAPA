@@ -9,19 +9,33 @@ from scraper.database.constants import _ARREST_COLUMNS, _INSERT_SQL, _to_tuple
 
 class InsertMixin:
     def insert_arrest(self, record: Dict[str, Any]) -> int:
-        cur = self._conn.cursor()
-        cur.execute(_INSERT_SQL, _to_tuple(record))
-        self._conn.commit()
-        return int(cur.lastrowid)
+        try:
+            cur = self._conn.cursor()
+            cur.execute(_INSERT_SQL, _to_tuple(record))
+            self._conn.commit()
+            return int(cur.lastrowid)
+        except Exception:
+            try:
+                self._conn.rollback()
+            except Exception:
+                pass
+            raise
 
     def insert_arrests_batch(self, records: List[Dict[str, Any]]) -> int:
         if not records:
             return 0
-        cur = self._conn.cursor()
-        cur.executemany(_INSERT_SQL, [_to_tuple(r) for r in records])
-        self._conn.commit()
-        n = cur.rowcount
-        return n if n is not None and n >= 0 else len(records)
+        try:
+            cur = self._conn.cursor()
+            cur.executemany(_INSERT_SQL, [_to_tuple(r) for r in records])
+            self._conn.commit()
+            n = cur.rowcount
+            return n if n is not None and n >= 0 else len(records)
+        except Exception:
+            try:
+                self._conn.rollback()
+            except Exception:
+                pass
+            raise
 
     def import_records(
         self,

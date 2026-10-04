@@ -10,6 +10,7 @@ import requests
 
 from scraper.config_types import USER_AGENT
 from scraper.state_bulk.common import (
+
     BATCH,
     clean,
     excel_serial_to_iso,
@@ -20,6 +21,11 @@ from scraper.state_bulk.common import (
     raw_json,
 )
 
+def _capped(data: bytes, limit: int) -> bytes:
+    """Stop oversize downloads. Keep memory safe."""
+    if len(data) > limit:
+        raise ValueError(f"Download too large: {len(data)} bytes")
+    return data
 SOURCE = "vt_doc"
 STATE = "VT"
 SOCRATA_CSV = (
@@ -43,7 +49,7 @@ def download_vermont(
     session.headers["User-Agent"] = USER_AGENT
     r = session.get(SOCRATA_CSV, timeout=300)
     r.raise_for_status()
-    target.write_bytes(r.content)
+    target.write_bytes(_capped(r.content, 200_000_000))
     log(f"  saved {target.name} ({len(r.content):,} bytes)")
     return target
 

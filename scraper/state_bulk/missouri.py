@@ -60,13 +60,26 @@ def download_missouri(
     r = session.get(SUNSHINE_URL, timeout=300, stream=True)
     r.raise_for_status()
     buf = io.BytesIO()
+    total = 0
     for chunk in r.iter_content(65536):
+        total += len(chunk)
+        if total > 500_000_000:
+            raise ValueError("MO zip too large")
         buf.write(chunk)
     buf.seek(0)
     z = zipfile.ZipFile(buf)
-    name = z.namelist()[0]
+    names = [n for n in z.namelist() if not n.endswith("/")]
+    if not names:
+        raise ValueError("Empty MO zip")
+    info = z.getinfo(names[0])
+    # Stop zip bombs. Check ratio and size.
+    if info.file_size > 500_000_000:
+        raise ValueError("MO dat too large")
+    name = names[0]
     with z.open(name) as f:
         data = f.read()
+    if len(data) > 500_000_000:
+        raise ValueError("MO dat too large")
     target.write_bytes(data)
     log(f"  saved {target.name} ({len(data):,} bytes)")
     return target
@@ -121,8 +134,7 @@ def map_mo_line(line: str) -> Optional[Dict[str, Any]]:
         "sex": sex,
         "gender": sex,
         "race": race,
-        "booking_date": dob,
-        "arrest_date": dob,
+        "date_of_birth": dob,
         "agency": "Missouri DOC",
         "jurisdiction": "Missouri DOC",
         "state": STATE,

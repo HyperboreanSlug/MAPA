@@ -81,8 +81,11 @@ class BustedNewspaperClient:
     def get(self, url: str, *, referer: Optional[str] = None) -> str:
         return self._request(url, referer=referer).text
 
-    def get_bytes(self, url: str, *, referer: Optional[str] = None) -> bytes:
-        return self._request(url, referer=referer).content
+    def get_bytes(self, url: str, *, referer: Optional[str] = None, max_bytes: int = 15_000_000) -> bytes:
+        data = self._request(url, referer=referer).content
+        if len(data) > max_bytes:
+            raise ValueError(f"Body too large: {len(data)} bytes")
+        return data
 
     @staticmethod
     def _is_hard_outage(exc: BaseException) -> bool:

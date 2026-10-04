@@ -21,6 +21,12 @@ from scraper.state_bulk.common import (
 )
 from scraper.state_bulk.xls_io import iter_named_rows
 
+
+def _capped(data: bytes, limit: int) -> bytes:
+    """Stop oversize downloads. Keep memory safe."""
+    if len(data) > limit:
+        raise ValueError(f"Download too large: {len(data)} bytes")
+    return data
 SOURCE = "il_idoc"
 STATE = "IL"
 BASE = "https://idoc.illinois.gov"
@@ -98,7 +104,7 @@ def download_illinois(
         try:
             r = session.get(url, timeout=180)
             r.raise_for_status()
-            dest.write_bytes(r.content)
+            dest.write_bytes(_capped(r.content, 200_000_000))
             log(f"  saved {dest.name} ({len(r.content):,} bytes)")
             paths.append(dest)
         except requests.RequestException as e:

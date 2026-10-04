@@ -13,6 +13,7 @@ class RecordSidebarShowMixin:
 
     def bind_after(self, after_fn: Callable[..., Any]) -> None:
         self._after = after_fn
+        self._pump_active = True
         if not self._pumping:
             self._pumping = True
             self._pump_ui()
@@ -68,6 +69,8 @@ class RecordSidebarShowMixin:
         self.verdict_status.configure(text=label or "", text_color=color)
 
     def _pump_ui(self) -> None:
+        if not getattr(self, "_pump_active", True):
+            return
         try:
             while True:
                 fn = self._ui_q.get_nowait()
@@ -78,7 +81,10 @@ class RecordSidebarShowMixin:
         except Exception:
             pass
         if self._after:
-            self._after(50, self._pump_ui)
+            try:
+                self._after(50, self._pump_ui)
+            except Exception:
+                self._pump_active = False
 
     def _schedule(self, fn: Callable[[], None]) -> None:
         self._ui_q.put(fn)

@@ -46,9 +46,12 @@ class RecentlyBookedClient:
         """Fetch *url* and return decoded response text, retrying transient failures."""
         return self._request(url).text
 
-    def get_bytes(self, url: str) -> bytes:
-        """Fetch *url* and return response bytes (used for booking photos)."""
-        return self._request(url).content
+    def get_bytes(self, url: str, *, max_bytes: int = 15_000_000) -> bytes:
+        """Fetch bytes. Stop large bodies to avoid memory spikes."""
+        data = self._request(url).content
+        if len(data) > max_bytes:
+            raise ValueError(f"Body too large: {len(data)} bytes")
+        return data
 
     def _request(self, url: str) -> requests.Response:
         """Fetch *url* and return the response after rate limiting and retries."""
